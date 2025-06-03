@@ -215,3 +215,208 @@ OrderItem {
 
 > 💡 **Tip**: Mỗi buổi học đều có bài tập thực hành. Hãy hoàn thành đầy đủ để đạt hiệu quả tối đa!
 
+## 📝 Lưu ý khi giảng dạy & tổ chức lớp học
+
+### 1. Kiến thức (Lý thuyết)
+- Giải thích ngắn gọn, thực tế, liên hệ ví dụ thực tế.
+- Bám sát lộ trình, mỗi buổi chỉ tập trung 1–2 chủ đề chính.
+- Nhấn mạnh nền tảng: JavaScript, TypeScript, OOP.
+- So sánh công nghệ (Express vs NestJS, Prisma vs TypeORM...).
+- Giải thích best practice: tại sao dùng DTO, validation, tách service/controller...
+
+### 2. Thực hành
+- Code live từng bước, vừa code vừa giải thích.
+- Chia nhỏ bài tập, có mini-exercise sau mỗi phần lý thuyết.
+- Khuyến khích học viên tự code lại, tự sửa lỗi.
+- Review code mẫu, chỉ ra điểm mạnh/yếu, refactor nếu cần.
+- Tạo môi trường thực tế: dùng Git, branch, pull request, code review.
+
+### 3. Tips & Kỹ năng mềm
+- Khuyến khích chủ động hỏi/tra cứu, không ngại sai.
+- Hướng dẫn đọc docs chính thống (MDN, NestJS, TypeORM...).
+- Chỉ cách debug hiệu quả: đọc lỗi, breakpoint, log, tìm bug.
+- Quản lý thời gian hợp lý, ưu tiên thực hành.
+- Giao tiếp & teamwork: làm việc nhóm, code review, giải thích cho nhau.
+- Ghi chú & tổng kết sau mỗi buổi, highlight lỗi thường gặp và mẹo xử lý.
+
+### 4. Mẹo thực tế khi dạy
+- Luôn chuẩn bị code mẫu, slide, checklist trước buổi học.
+- Dùng nhiều ví dụ thực tế (CRUD, login, upload, pagination...).
+- Tạo không khí học tập tích cực, động viên học viên thử và sai.
+- Theo sát tiến độ, hỗ trợ cá nhân nếu học viên bị chậm.
+- Định kỳ tổ chức mini review, quiz, hoặc demo nhỏ để kiểm tra kiến thức.
+
+> **Tóm lại:** 70% thực hành, 30% lý thuyết. Luôn giải thích "tại sao" chứ không chỉ "làm gì". Tạo động lực và thói quen tự học, tự giải quyết vấn đề cho học viên.
+
+---
+
+## 📋 Checklist chi tiết cho từng buổi & Template review code
+
+### Checklist từng buổi
+
+#### Buổi 0: Giới thiệu, setup, mindset
+- **Lý thuyết:** Giới thiệu khóa học, lộ trình, mục tiêu, công cụ cần thiết, mindset học thực chiến
+- **Demo/code mẫu:** Hướng dẫn cài đặt Node.js, VSCode, Git, MySQL
+- **Bài tập thực hành:** Cài đặt đầy đủ các công cụ, thử tạo project Node.js đầu tiên
+- **Assignment:** Viết 1 đoạn giới thiệu bản thân, lý do học backend, chụp màn hình cài đặt thành công
+- **Lưu ý:** Tạo không khí tích cực, giải thích rõ kỳ vọng và phương pháp học
+
+#### Buổi 1: Biến, kiểu dữ liệu, toán tử, điều kiện
+- **Lý thuyết:** var/let/const, kiểu dữ liệu cơ bản, toán tử, if/switch
+- **Demo/code mẫu:** So sánh var/let/const, ví dụ kiểm tra số chẵn/lẻ, phân loại học lực
+- **Bài tập thực hành:** Viết hàm kiểm tra số chia hết, phân loại học lực theo điểm
+- **Assignment:** Bài tập về biến, kiểu dữ liệu, toán tử, điều kiện (tự nghĩ thêm ví dụ)
+- **Lưu ý:** Nhấn mạnh sự khác biệt var/let/const, giải thích scope
+
+#### Buổi 2: Vòng lặp, hàm, mảng cơ bản
+- **Lý thuyết:** for/while, function declaration/expression, array methods (push, map, filter)
+- **Demo/code mẫu:** Tính tổng số chẵn, kiểm tra số nguyên tố, quản lý danh sách
+- **Bài tập thực hành:** Viết hàm tính tổng, filter mảng, tìm phần tử lớn nhất
+- **Assignment:** Bài tập về vòng lặp, hàm, mảng (tự nghĩ thêm ví dụ)
+- **Lưu ý:** Khuyến khích học viên tự code lại demo
+
+#### Buổi 3: Object, scope, callback, JSON
+- **Lý thuyết:** Object, thuộc tính/phương thức, scope/hoisting, callback, JSON
+- **Demo/code mẫu:** Quản lý đơn hàng bằng object, callback delay, chuyển đổi JSON
+- **Bài tập thực hành:** Viết object quản lý học sinh, sử dụng callback cho delay
+- **Assignment:** Bài tập về object, callback, JSON
+- **Lưu ý:** Giải thích kỹ callback và JSON.stringify/parse
+
+#### Buổi 4: ES6+: Destructuring, arrow, spread, class
+- **Lý thuyết:** Destructuring, arrow function, spread/rest, class, inheritance
+- **Demo/code mẫu:** Tạo class User, clone object, filter theo role
+- **Bài tập thực hành:** Viết class Product, sử dụng destructuring và spread
+- **Assignment:** Bài tập về class, arrow function, destructuring
+- **Lưu ý:** Nhấn mạnh sự tiện lợi của ES6+ cho code backend
+
+#### Buổi 5: Promise, async/await, module
+- **Lý thuyết:** Promise, async/await, import/export, module hóa code
+- **Demo/code mẫu:** Fetch API giả lập, gọi API liên tiếp, tách code thành module
+- **Bài tập thực hành:** Viết hàm fetch giả lập, sử dụng async/await, tách module
+- **Assignment:** Bài tập về Promise, async/await, module
+- **Lưu ý:** Giải thích rõ callback hell và cách async/await giải quyết
+
+#### Buổi 6: Node.js, TypeScript cơ bản, setup project, ESLint, Prettier
+- **Lý thuyết:** Node.js runtime, package.json, TypeScript (type, interface, class, function, module, type assertion), cấu hình tsconfig, code style
+- **Demo/code mẫu:** Setup project TypeScript + Express, refactor code JS sang TS, tạo interface/class
+- **Bài tập thực hành:** Chuyển 1 file JS sang TS, tạo interface/class, cấu hình ESLint/Prettier
+- **Assignment:** Viết 1 module nhỏ bằng TypeScript, đảm bảo pass lint
+- **Lưu ý:** Hướng dẫn debug TypeScript, giải thích lỗi thường gặp
+
+#### Buổi 7: Express: Routing, Middleware, Controller, Service
+- **Lý thuyết:** HTTP methods, routing, middleware, controller, service, MVC pattern
+- **Demo/code mẫu:** CRUD products, middleware log IP, tách service layer
+- **Bài tập thực hành:** Viết CRUD cho 1 resource, thêm middleware log
+- **Assignment:** Refactor code theo MVC, viết thêm 1 middleware mới
+- **Lưu ý:** Nhấn mạnh separation of concerns
+
+#### Buổi 8: Git, Git Flow, Pull Request, conflict
+- **Lý thuyết:** Git workflow, branch, commit, merge, conflict, Pull Request
+- **Demo/code mẫu:** Tạo repo, branch, merge, giải quyết conflict, tạo PR
+- **Bài tập thực hành:** Thực hành Git Flow với feature branch, xử lý conflict
+- **Assignment:** Tạo repo cá nhân, push code, tạo PR, mô tả quy trình
+- **Lưu ý:** Hướng dẫn commit message chuẩn, giải thích ý nghĩa từng bước
+
+#### Buổi 9: RESTful API, Clean Architecture
+- **Lý thuyết:** REST principles, status code, folder structure, clean architecture
+- **Demo/code mẫu:** Refactor project theo clean architecture, tài liệu API
+- **Bài tập thực hành:** Refactor code, viết tài liệu endpoint
+- **Assignment:** Review lại code, bổ sung tài liệu API
+- **Lưu ý:** Nhấn mạnh tính mở rộng, maintainable
+
+#### Buổi 10: MySQL + TypeORM, Entity, CRUD
+- **Lý thuyết:** MySQL cơ bản, kết nối DB, TypeORM, Entity, migration, CRUD
+- **Demo/code mẫu:** Tạo bảng Product, CRUD với TypeORM, liên kết bảng
+- **Bài tập thực hành:** Tạo Entity Product, CRUD đầy đủ, thử liên kết với User/Order
+- **Assignment:** Viết migration, seed data, tối ưu query
+- **Lưu ý:** Giải thích sự khác biệt giữa ORM và query thuần
+
+#### Buổi 11: TypeScript recap nâng cao, NestJS Introduction, Architecture
+- **Lý thuyết:** Tổng hợp TypeScript nâng cao (OOP, Decorator, Generic, Enum, DTO, type guard), NestJS CLI, module hóa
+- **Demo/code mẫu:** Module products, CRUD với NestJS, ví dụ decorator
+- **Bài tập thực hành:** Tổng hợp ví dụ TypeScript nâng cao, tạo module mới
+- **Assignment:** Viết 1 decorator hoặc generic function cho project
+- **Lưu ý:** Nhấn mạnh sự khác biệt giữa Express và NestJS
+
+#### Buổi 12: Module, DTO, Validation, Pipe
+- **Lý thuyết:** Module, DTO, class-validator, pipes, middleware
+- **Demo/code mẫu:** DTO validation, pipe kiểm tra ID, middleware custom
+- **Bài tập thực hành:** Viết DTO, validation, custom pipe
+- **Assignment:** Refactor input validation toàn project
+- **Lưu ý:** Giải thích rõ vai trò của DTO và pipe
+
+#### Buổi 13: Authentication: JWT, Guard, Role-based access
+- **Lý thuyết:** JWT, auth flow, guard, role-based access
+- **Demo/code mẫu:** Register/login, JWT token, protect routes, guard
+- **Bài tập thực hành:** Thêm auth cho 1 resource, phân quyền user/admin
+- **Assignment:** Viết guard custom, refresh token
+- **Lưu ý:** Nhấn mạnh bảo mật, không hardcode secret
+
+#### Buổi 14: Swagger, Error Handling, API Testing
+- **Lý thuyết:** Swagger docs, global exception filter, Postman/Newman
+- **Demo/code mẫu:** Swagger integration, custom error, test API
+- **Bài tập thực hành:** Viết tài liệu Swagger, test API với Postman
+- **Assignment:** Bổ sung test case, custom error cho 1 endpoint
+- **Lưu ý:** Hướng dẫn viết tài liệu rõ ràng, test kỹ các case lỗi
+
+#### Buổi 15: File upload (Multer), Pagination, Filtering
+- **Lý thuyết:** Upload file, Multer, phân trang, filter, query builder
+- **Demo/code mẫu:** Upload ảnh, phân trang, filter theo price
+- **Bài tập thực hành:** Thêm upload cho Product, filter nâng cao
+- **Assignment:** Viết API phân trang, filter động
+- **Lưu ý:** Giải thích cách lưu file an toàn, tối ưu query
+
+#### Buổi 16: Testing (Unit test, E2E test), Performance, Security, Code Review, Final Project Demo
+- **Lý thuyết:** Unit test, E2E test (Jest, Supertest), performance, security, code review
+- **Demo/code mẫu:** Viết unit test cho service, e2e test cho controller, tối ưu code, review project
+- **Bài tập thực hành:** Viết test cho 1 module, tối ưu 1 query, review code nhóm
+- **Assignment:** Chuẩn bị demo project, checklist review cuối khóa
+- **Lưu ý:** Động viên học viên tự tin trình bày, nhận feedback, tổng kết khóa học
+
+### Template review code
+
+#### 📋 Mẫu review code thực chiến
+
+1. **Tổng quan (General impression)**
+   - Code có dễ đọc, dễ hiểu không?
+   - Có comment hợp lý, giải thích đủ ý?
+
+2. **Đọc/hiểu code (Readability)**
+   - Tên biến, hàm, class rõ ràng, đúng ý nghĩa?
+   - Code có bị lặp, dư thừa, khó đọc không?
+   - Có sử dụng type/interface hợp lý (với TypeScript)?
+
+3. **Kiến trúc & tổ chức (Architecture & Structure)**
+   - Đã tách module, controller, service, DTO hợp lý chưa?
+   - Có vi phạm nguyên tắc separation of concerns?
+   - Folder structure rõ ràng, dễ mở rộng?
+
+4. **Biến, hàm, class (Naming & conventions)**
+   - Đặt tên theo chuẩn camelCase/PascalCase?
+   - Có tuân thủ quy tắc đặt tên, code style (lint, prettier)?
+
+5. **Logic & bug**
+   - Đã xử lý hết các case edge/corner chưa?
+   - Có bug logic, thiếu validate, thiếu error handling?
+   - Có hardcode giá trị không nên?
+
+6. **Best practice & security**
+   - Đã dùng DTO, validation, guard, middleware đúng chỗ?
+   - Có lộ secret/key, thiếu check quyền, thiếu try/catch?
+   - Có SQL Injection, XSS, lỗ hổng bảo mật?
+
+7. **Test & coverage**
+   - Đã có unit test, e2e test cho các chức năng chính?
+   - Test case có đủ happy path, edge case?
+
+8. **Gợi ý cải thiện (Suggestions)**
+   - Đề xuất refactor, tối ưu, chia nhỏ function/class
+   - Đề xuất bổ sung test, tài liệu, comment
+
+9. **Đánh giá tổng thể (Overall rating)**
+   - Điểm mạnh:
+   - Điểm cần cải thiện:
+   - Đánh giá chung (1-5 ⭐️):
+
+---
+
