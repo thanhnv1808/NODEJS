@@ -12,6 +12,106 @@ Have you ever wondered:
 
 ---
 
+## 🟦 Kiến thức TypeScript cần nắm (Essential TypeScript Knowledge)
+
+NestJS được xây dựng hoàn toàn trên TypeScript. Để học tốt NestJS, bạn cần nắm vững các kiến thức TypeScript sau:
+
+NestJS is built entirely on TypeScript. To master NestJS, you should be comfortable with these TypeScript concepts:
+
+### 1. Interface & Type
+- Định nghĩa cấu trúc dữ liệu, giúp code rõ ràng, dễ kiểm soát.
+- Define data structures for clarity and type safety.
+
+```typescript
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
+
+const p: Product = { id: 1, name: 'Book', price: 100 };
+```
+
+### 2. Class & Access Modifier
+- NestJS sử dụng class cho controller, service, module.
+- Sử dụng public/private/protected để kiểm soát truy cập thuộc tính/phương thức.
+- NestJS uses classes for controllers, services, modules. Use access modifiers for encapsulation.
+
+```typescript
+class ProductService {
+  private products: Product[] = [];
+  public addProduct(p: Product) {
+    this.products.push(p);
+  }
+}
+```
+
+### 3. Decorator
+- Decorator là cú pháp quan trọng trong NestJS (@Controller, @Injectable, @Get, ...)
+- Decorators are a key feature in NestJS.
+
+```typescript
+import { Controller, Get } from '@nestjs/common';
+
+@Controller('products')
+export class ProductsController {
+  @Get()
+  findAll() {
+    return [];
+  }
+}
+```
+
+### 4. Generics
+- Dùng để tái sử dụng code với nhiều kiểu dữ liệu khác nhau.
+- Use generics for reusable, type-safe code.
+
+```typescript
+function wrap<T>(data: T): { data: T } {
+  return { data };
+}
+const result = wrap<string>('hello');
+```
+
+### 5. Enum
+- Quản lý các giá trị cố định (status, role, ...)
+- Manage fixed sets of values (status, roles, ...)
+
+```typescript
+enum Role {
+  Admin = 'admin',
+  User = 'user',
+}
+```
+
+### 6. Data Transfer Object (DTO) & Validation
+- DTO giúp định nghĩa dữ liệu vào/ra, kết hợp class-validator để validate.
+- DTOs define input/output data, used with class-validator for validation.
+
+```typescript
+import { IsString, IsInt } from 'class-validator';
+
+export class CreateProductDto {
+  @IsString()
+  name: string;
+
+  @IsInt()
+  price: number;
+}
+```
+
+### 💡 Tips sử dụng TypeScript hiệu quả trong backend
+- Luôn định nghĩa type/interface cho dữ liệu, tránh dùng any
+- Sử dụng DTO cho mọi input/output
+- Tận dụng tính năng autocomplete, type checking của VSCode
+- Đọc kỹ error TypeScript, sửa lỗi triệt để
+- Always define types/interfaces, avoid using any
+- Use DTOs for all input/output
+- Leverage VSCode's autocomplete and type checking
+- Read and fix TypeScript errors thoroughly
+
+---
+
 ## 1. 🚀 NestJS là gì?
 
 **NestJS** là framework Node.js hiện đại, xây dựng trên TypeScript, lấy cảm hứng từ Angular:

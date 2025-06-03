@@ -12,38 +12,29 @@ Khóa học thực chiến 16 buổi từ JavaScript cơ bản đến Backend ch
 
 ---
 
-## 📅 Lộ trình học tập chi tiết
+## 📅 Lộ trình học tập chi tiết (16 buổi)
 
-### 🟡 Giai đoạn 1: JavaScript Foundation (Tuần 1-3)
+> **Lưu ý:** Từ buổi 6, toàn bộ code sẽ chuyển sang TypeScript. Học viên cần nắm vững các khái niệm: type, interface, class, function, module, generic, decorator, DTO... để học tốt Node.js và NestJS.
 
-| Tuần | Buổi | Nội dung chính | Kỹ năng chính | Bài tập thực hành |
-|------|------|----------------|---------------|-------------------|
-| **1** | **1** | **Biến, Kiểu dữ liệu, Toán tử, Câu lệnh điều kiện** | `var/let/const`, kiểu dữ liệu, `if/switch` | Kiểm tra số chia hết, tìm số lớn nhất, phân loại học lực |
-| **1** | **2** | **Vòng lặp, Hàm, Mảng cơ bản** | `for/while/forEach`, function, `push/map/filter` | Tính tổng số chẵn, kiểm tra số nguyên tố, quản lý danh sách học sinh |
-| **2** | **3** | **Object, Scope, Callback, JSON** | Object, scope/hoisting, callback, JSON | Quản lý đơn hàng, callback delay, chuyển đổi JSON |
-| **2** | **4** | **ES6+: Destructuring, Arrow, Spread, Class** | Destructuring, arrow function, class/inheritance | Tạo class User, clone object, filter theo role |
-| **3** | **5** | **Promise, Async/Await, Module** | Promise, async/await, import/export | Fetch API giả lập, gọi API liên tiếp, module hóa |
-
-### 🔵 Giai đoạn 2: Node.js & Express (Tuần 3-5)
-
-| Tuần | Buổi | Nội dung chính | Kỹ năng chính | Bài tập thực hành |
-|------|------|----------------|---------------|-------------------|
-| **3** | **6** | **Node.js + Setup Project (TS, ESLint, Prettier)** | Node.js, npm, TypeScript setup | Setup project TypeScript + Express, endpoint `/hello` |
-| **4** | **7** | **Express Routing, Middleware, Controller, Service** | HTTP methods, middleware, MVC pattern | CRUD products, middleware log IP, tách service layer |
-| **4** | **8** | **Git căn bản + Git Flow + Pull Request** | Git workflow, branching, conflict resolution | Git flow với feature branch, xử lý conflict |
-| **5** | **9** | **RESTful API chuẩn, Clean Architecture** | REST principles, folder structure | Refactor theo clean architecture, tài liệu API |
-| **5** | **10** | **Database Integration (PostgreSQL/MySQL + ORM)** | Database, ORM (Prisma/Sequelize), relations | Tạo bảng Product, CRUD với database |
-
-### 🟢 Giai đoạn 3: NestJS Advanced (Tuần 6-8)
-
-| Tuần | Buổi | Nội dung chính | Kỹ năng chính | Bài tập thực hành |
-|------|------|----------------|---------------|-------------------|
-| **6** | **11** | **NestJS Introduction + Architecture** | NestJS CLI, modules, controllers, services | Module products, CRUD với NestJS |
-| **6** | **12** | **Module, DTO, Validation, Pipe** | DTO, class-validator, pipes, middleware | DTO validation, pipe kiểm tra ID |
-| **7** | **13** | **Authentication: JWT + Guard** | JWT, auth flow, guards, middleware | Register/login, JWT token, protect routes |
-| **7** | **14** | **Swagger, Error Handling, API Testing** | Swagger docs, global exception filter | Swagger integration, Postman testing |
-| **8** | **15** | **Advanced: Upload, Pagination, Filter** | File upload (Multer), pagination, filtering | Upload ảnh, phân trang, filter theo price |
-| **8** | **16** | **Final Project + Review** | Full-stack backend system | Hệ thống quản lý sản phẩm & đơn hàng hoàn chỉnh |
+| Giai đoạn | Buổi | Chủ đề chính | Kỹ năng chính | Bài tập thực hành |
+|-----------|------|--------------|--------------|-------------------|
+| Giới thiệu | **0** | Giới thiệu, setup, mindset | Lộ trình, mục tiêu, cài đặt tool, tips học | Cài đặt Node.js, VSCode, Git, MySQL |
+| JavaScript Basic | **1** | Biến, kiểu dữ liệu, toán tử, điều kiện | `var/let/const`, kiểu dữ liệu, if/switch | Kiểm tra số chia hết, phân loại học lực |
+| JavaScript Basic | **2** | Vòng lặp, hàm, mảng cơ bản | for/while, function, array methods | Tính tổng số chẵn, quản lý danh sách |
+| JavaScript Basic | **3** | Object, scope, callback, JSON | Object, scope/hoisting, callback, JSON | Quản lý đơn hàng, callback delay |
+| JavaScript Advance | **4** | ES6+: Destructuring, arrow, spread, class | Destructuring, arrow function, class | Tạo class User, clone object |
+| JavaScript Advance | **5** | Promise, async/await, module | Promise, async/await, import/export | Fetch API giả lập, module hóa |
+| Node.js | **6** | Node.js, **TypeScript cơ bản**, setup project, ESLint, Prettier | Node.js, npm, **TypeScript: type, interface, class, function, module, type assertion** | Setup project TypeScript + Express, refactor code JS sang TS, tạo interface/class, cấu hình tsconfig |
+| Node.js | **7** | Express: Routing, Middleware, Controller, Service | HTTP methods, middleware, MVC | CRUD products, middleware log IP |
+| Node.js | **8** | Git, Git Flow, Pull Request, conflict | Git workflow, branching, conflict | Git flow với feature branch, xử lý conflict |
+| Node.js | **9** | RESTful API, Clean Architecture | REST principles, folder structure | Refactor theo clean architecture, tài liệu API |
+| Node.js | **10** | MySQL + TypeORM, Entity, CRUD | Cài MySQL, kết nối TypeORM, Entity, CRUD | Tạo bảng Product, CRUD với TypeORM |
+| NestJS | **11** | **TypeScript recap nâng cao**, NestJS Introduction, Architecture | **TypeScript OOP, Decorator, Generic, Enum, DTO, type guard**; NestJS CLI, module | Tổng hợp ví dụ TypeScript nâng cao, module products, CRUD với NestJS |
+| NestJS | **12** | Module, DTO, Validation, Pipe | DTO, class-validator, pipes, middleware | DTO validation, pipe kiểm tra ID |
+| NestJS | **13** | Authentication: JWT, Guard, Role-based access | JWT, auth flow, guards, role | Register/login, JWT token, protect routes |
+| NestJS | **14** | Swagger, Error Handling, API Testing | Swagger docs, global exception filter, Postman | Swagger integration, Postman testing |
+| NestJS | **15** | File upload (Multer), Pagination, Filtering | Upload file, phân trang, filter, query builder | Upload ảnh, phân trang, filter theo price |
+| NestJS | **16** | Testing (Unit test, E2E test), Performance, Security, Code Review, Final Project Demo | Jest, Supertest, bảo mật, tối ưu, review | Viết unit test, e2e test, demo project, code review |
 
 ---
 
@@ -161,7 +152,7 @@ OrderItem {
 ### 🛠️ Kỹ năng Thực tế
 - Thiết kế **RESTful API** chuẩn
 - Implement **JWT Authentication** và authorization
-- **Database integration** với ORM (Prisma/Sequelize)
+- **Database integration** với ORM (TypeORM)
 - **Git Flow** và collaborative development
 - **API documentation** với Swagger
 - **Error handling** và validation patterns
@@ -182,7 +173,7 @@ OrderItem {
 - **Language**: TypeScript
 - **Frameworks**: Express.js, NestJS
 - **Database**: PostgreSQL / MySQL
-- **ORM**: Prisma / Sequelize
+- **ORM**: TypeORM
 
 ### Development Tools
 - **Code Quality**: ESLint, Prettier
