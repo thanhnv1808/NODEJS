@@ -86,6 +86,82 @@ findOne(@Param('id', ParseIntPipe) id: number) {
 
 ---
 
+## 🌟 Bổ sung kiến thức thực tế & nâng cao
+
+### 1. Custom message cho class-validator
+- Có thể truyền message tùy chỉnh cho từng rule:
+```typescript
+@IsString({ message: 'Tên phải là chuỗi' })
+name: string;
+```
+
+### 2. Validate nested object
+- Dùng @ValidateNested và @Type để validate object lồng nhau:
+```typescript
+import { Type } from 'class-transformer';
+import { ValidateNested, IsString } from 'class-validator';
+class CategoryDto {
+  @IsString()
+  name: string;
+}
+class ProductDto {
+  @ValidateNested()
+  @Type(() => CategoryDto)
+  category: CategoryDto;
+}
+```
+
+### 3. DTO kế thừa (extends)
+- Có thể kế thừa DTO để tái sử dụng rule:
+```typescript
+export class UpdateProductDto extends CreateProductDto {
+  // Có thể thêm rule riêng cho update
+}
+```
+
+### 4. Pipe cho mọi loại input
+- Pipe dùng được cho body, param, query, custom decorator:
+```typescript
+@Get(':id')
+findOne(@Param('id', ParseIntPipe) id: number) { ... }
+@Post()
+create(@Body(TrimStringPipe) name: string) { ... }
+```
+
+### 5. Thứ tự thực thi Pipe
+- Pipe thực thi theo thứ tự khai báo (trái sang phải):
+```typescript
+@Post()
+create(@Body('name', TrimStringPipe, CustomUppercasePipe) name: string) { ... }
+// name sẽ được trim trước, rồi uppercase
+```
+
+### 6. Tích hợp với Swagger
+- Dùng decorator để tài liệu hóa DTO:
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+export class CreateProductDto {
+  @ApiProperty({ example: 'Book', description: 'Tên sản phẩm' })
+  name: string;
+}
+```
+
+### 7. Exception khi validate
+- Nếu validate fail, NestJS trả về lỗi 400 (BadRequestException) với message chi tiết.
+
+### 8. Global Pipe nâng cao
+- Có thể cấu hình thêm transform, forbidUnknownValues, custom error:
+```typescript
+app.useGlobalPipes(new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  exceptionFactory: (errors) => new BadRequestException(errors),
+}));
+```
+
+---
+
 ## 💡 Tips thực tế khi dùng DTO, Validation, Pipe
 - Luôn dùng DTO cho mọi input (body, query, param)
 - Dùng class-validator để validate, kết hợp nhiều decorator
