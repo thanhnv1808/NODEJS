@@ -132,6 +132,72 @@ async findAll(@Query() query: any) {
 
 ---
 
+## 🌟 Bổ sung thực tế & nâng cao
+
+### 1. Swagger cho upload file
+- Dùng @ApiConsumes('multipart/form-data'), @ApiBody để mô tả upload file trong Swagger.
+```typescript
+@ApiConsumes('multipart/form-data')
+@ApiBody({ type: FileUploadDto })
+@Post('upload')
+upload(@UploadedFile() file: Express.Multer.File) { ... }
+```
+
+### 2. Validate file upload nâng cao
+- Custom fileFilter để kiểm tra mime type, size:
+```typescript
+const fileFilter = (req, file, cb) => {
+  if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files allowed!'), false);
+  cb(null, true);
+};
+@UseInterceptors(FileInterceptor('file', { fileFilter, limits: { fileSize: 2 * 1024 * 1024 } }))
+```
+
+### 3. Xử lý lỗi upload (custom Exception)
+- Tạo custom exception cho lỗi upload (file quá lớn, sai loại):
+```typescript
+if (!file) throw new BadRequestException('Invalid file');
+```
+
+### 4. Trả về URL truy cập file
+- Sau khi upload, trả về URL public hoặc relative path:
+```typescript
+return { url: `/uploads/${file.filename}` };
+```
+
+### 5. Pagination nâng cao
+- Trả về meta: totalPages, hasNext, hasPrev:
+```typescript
+return {
+  data,
+  meta: {
+    total, page, limit,
+    totalPages: Math.ceil(total/limit),
+    hasNext: page * limit < total,
+    hasPrev: page > 1
+  }
+};
+```
+
+### 6. Security khi upload file
+- Kiểm tra XSS, path traversal khi lưu file.
+- Không cho phép upload file .exe, .sh, ...
+- Đặt tên file unique, không dùng tên gốc từ client.
+
+### 7. Test upload với Postman
+- Sử dụng tab "Body" > "form-data" để gửi file.
+- Test upload nhiều file, file lớn, file sai loại.
+
+### 8. Unit test cho upload/pagination/filter
+- Có thể dùng TestingModule để test controller/service:
+```typescript
+describe('UploadController', () => {
+  it('should upload file and return url', () => { /* ... */ });
+});
+```
+
+---
+
 ## 📝 Bài tập thực hành
 - Tích hợp upload file (ảnh) cho Product, validate loại file, dung lượng
 - Thêm API phân trang, filter cho danh sách Product
