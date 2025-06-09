@@ -136,6 +136,58 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
 ---
 
+## 🌟 Bổ sung thực tế & nâng cao
+
+### 1. Swagger nâng cao
+- **Grouping/tag endpoint**: Dùng @ApiTags('product') để nhóm endpoint theo module.
+- **Versioning API**: Có thể cấu hình version cho Swagger (v1, v2...).
+- **Ẩn/hiện endpoint**: Dùng @ApiHideProperty, @ApiExcludeEndpoint để ẩn field/route khỏi docs.
+- **Upload file**: Dùng @ApiConsumes('multipart/form-data'), @ApiBody để mô tả upload file.
+```typescript
+@ApiTags('product')
+@ApiConsumes('multipart/form-data')
+@ApiBody({ type: FileUploadDto })
+@Post('upload')
+upload(@UploadedFile() file: Express.Multer.File) { ... }
+```
+
+### 2. Exception Filter nâng cao
+- Xử lý cả non-HttpException (Error, string, ...).
+- Có thể log lỗi ra file/service (winston, Sentry, ...).
+```typescript
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) {
+    // ...
+    // Gửi log tới Sentry, winston, ...
+  }
+}
+```
+
+### 3. API Testing nâng cao
+- Test auth flow: Đăng nhập, lấy token, test các route cần auth.
+- Test performance: Dùng Postman/Newman để đo thời gian phản hồi.
+- Mock server: Dùng Swagger hoặc Postman để tạo mock API nhanh.
+
+### 4. Tích hợp Swagger với Auth
+- Dùng @ApiBearerAuth() để mô tả route cần JWT:
+```typescript
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@Get('private')
+getPrivateData() { ... }
+```
+
+### 5. Unit test cho Exception Filter
+- Có thể dùng TestingModule để test filter:
+```typescript
+describe('GlobalExceptionFilter', () => {
+  it('should return custom error response', () => { /* ... */ });
+});
+```
+
+---
+
 ## 💡 Tips thực tế khi viết docs & test API
 - Luôn cập nhật Swagger khi thay đổi API
 - Đặt example, description rõ ràng cho từng field
