@@ -170,6 +170,69 @@ if (isRevoked) throw new UnauthorizedException('Token revoked');
 
 ---
 
+## 🌟 Bổ sung thực tế & nâng cao
+
+### 1. Cấu hình Passport + JWT module
+- NestJS hỗ trợ sẵn @nestjs/passport, @nestjs/jwt để triển khai JWT nhanh chóng.
+```typescript
+import { JwtModule } from '@nestjs/jwt';
+@Module({
+  imports: [
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
+})
+export class AuthModule {}
+```
+
+### 2. Custom decorator lấy user từ request
+- Tạo decorator để lấy user đã verify từ guard:
+```typescript
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+export const User = createParamDecorator((data, ctx: ExecutionContext) => {
+  const req = ctx.switchToHttp().getRequest();
+  return req.user;
+});
+// Sử dụng: @Get() getMe(@User() user) { ... }
+```
+
+### 3. Lưu token ở đâu trên client (cookie vs localStorage)
+- **HttpOnly Cookie**: Bảo vệ khỏi XSS, nhưng cần CSRF protection.
+- **localStorage**: Dễ dùng, nhưng dễ bị XSS tấn công.
+- Tùy use-case, cân nhắc bảo mật khi lưu token trên client.
+
+### 4. Refresh token best practice
+- Lưu refresh token ở HttpOnly cookie hoặc DB.
+- Khi cấp lại access token, nên rotate refresh token (tạo mới, vô hiệu hóa cái cũ).
+- Có thể lưu refresh token hash trong DB để tăng bảo mật.
+
+### 5. Cơ chế revoke token nâng cao
+- Dùng Redis hoặc DB với TTL để lưu blacklist token.
+- Có thể dùng JWT với short TTL, refresh liên tục, giảm nhu cầu revoke.
+
+### 6. Tích hợp Swagger cho Auth
+- Dùng @ApiBearerAuth() để tài liệu hóa route cần JWT:
+```typescript
+import { ApiBearerAuth } from '@nestjs/swagger';
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@Get('private')
+getPrivateData() { ... }
+```
+
+### 7. Unit test cho guard/auth service
+- Có thể dùng TestingModule để test guard, service:
+```typescript
+describe('AuthGuard', () => {
+  it('should throw if no token', () => { /* ... */ });
+  it('should pass if token valid', () => { /* ... */ });
+});
+```
+
+---
+
 ## ✅ Checklist review bảo mật Auth/JWT
 - [ ] Secret key lưu ở .env, không hardcode
 - [ ] Token có expiresIn hợp lý, không để sống mãi
