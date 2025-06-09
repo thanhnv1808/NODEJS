@@ -298,6 +298,99 @@ export class ProductsService {
 
 ---
 
+## 🌟 Bổ sung: Middleware, Interceptor, Exception Filter, Swagger, Testing
+
+### Middleware
+- Xử lý request trước khi vào controller (logging, auth, ...)
+- Đăng ký trong module hoặc toàn cục.
+```typescript
+// logger.middleware.ts
+import { Injectable, NestMiddleware } from '@nestjs/common';
+@Injectable()
+export class LoggerMiddleware implements NestMiddleware {
+  use(req: any, res: any, next: () => void) {
+    console.log('Request...', req.method, req.url);
+    next();
+  }
+}
+// app.module.ts
+import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { LoggerMiddleware } from './logger.middleware';
+@Module({})
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('*');
+  }
+}
+```
+
+### Interceptor
+- Can thiệp vào request/response (transform, logging, cache...)
+```typescript
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+@Injectable()
+export class TransformInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(map(data => ({ data, success: true })));
+  }
+}
+// main.ts
+app.useGlobalInterceptors(new TransformInterceptor());
+```
+
+### Exception Filter
+- Xử lý lỗi tập trung, custom response khi có exception.
+```typescript
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
+@Catch(HttpException)
+export class HttpErrorFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const status = exception.getStatus();
+    response.status(status).json({
+      statusCode: status,
+      message: exception.message,
+    });
+  }
+}
+// main.ts
+app.useGlobalFilters(new HttpErrorFilter());
+```
+
+### Swagger
+- Tự động tạo tài liệu API.
+```typescript
+// main.ts
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+const config = new DocumentBuilder().setTitle('API').setVersion('1.0').build();
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('api', app, document);
+```
+
+### Testing
+- NestJS hỗ trợ unit test (Jest) cho service/controller.
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { ProductsService } from './products.service';
+describe('ProductsService', () => {
+  let service: ProductsService;
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [ProductsService],
+    }).compile();
+    service = module.get<ProductsService>(ProductsService);
+  });
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+});
+```
+
+---
+
 ## 📝 Bài tập thực hành
 - Khởi tạo project NestJS, tạo module/controller/service cho Product
 - Cài class-validator, tạo DTO validate khi tạo Product
