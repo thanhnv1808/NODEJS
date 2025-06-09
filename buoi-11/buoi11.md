@@ -1,0 +1,161 @@
+# Buổi 11: NestJS Introduction + Architecture
+
+<!-- Page 1 -->
+- NestJS là framework Node.js hiện đại, dựa trên TypeScript, lấy cảm hứng từ Angular.
+- Tổ chức code module hóa, dễ mở rộng, bảo trì.
+- Hỗ trợ Dependency Injection, Decorator, Validation, Guard, Pipe, Middleware, Interceptor.
+
+---
+
+<!-- Page 2 -->
+## Câu hỏi mở đầu
+- Tại sao nên dùng NestJS thay vì Express truyền thống?
+- NestJS giúp tổ chức code lớn, phức tạp như thế nào?
+- Module, Controller, Service trong NestJS khác gì Express?
+
+---
+
+<!-- Page 3 -->
+## Kiến thức TypeScript cần nắm
+- **Interface & Type**: Định nghĩa cấu trúc dữ liệu.
+- **Class & Access Modifier**: Tổ chức code, kiểm soát truy cập.
+- **Decorator**: @Controller, @Injectable, @Get, ...
+- **Generics**: Tái sử dụng code.
+- **Enum**: Quản lý giá trị cố định.
+- **DTO & Validation**: Định nghĩa dữ liệu vào/ra, validate với class-validator.
+
+---
+
+<!-- Page 4 -->
+## Kiến trúc cơ bản của NestJS
+- **Module**: Gom controller/service liên quan.
+- **Controller**: Nhận request, trả response.
+- **Service**: Xử lý logic nghiệp vụ.
+- **Provider**: Class có thể inject (service, repo,...)
+- **Sơ đồ**: Request → Controller → Service → Provider → Response
+
+---
+
+<!-- Page 5 -->
+## Bắt đầu với NestJS
+- Cài Nest CLI: `npm i -g @nestjs/cli`
+- Khởi tạo project: `nest new my-nest-app`
+- Tạo module/controller/service: `nest g module products`, ...
+- CRUD Controller mẫu:
+```typescript
+@Get() findAll() { return this.productsService.findAll(); }
+@Post() create(@Body() body) { return this.productsService.create(body); }
+```
+
+---
+
+<!-- Page 6 -->
+## Tips thực tế
+- Chia nhỏ module theo domain.
+- Inject service qua constructor.
+- Dùng DTO + class-validator cho input.
+- Sử dụng guard cho auth, pipe cho validate/transform.
+- Tích hợp Swagger cho tài liệu API.
+- Viết unit test cho service, controller.
+
+---
+
+<!-- Page 7 -->
+## Guard & Pipe nâng cao
+- **Guard**: Kiểm tra JWT, phân quyền.
+```typescript
+canActivate(context: ExecutionContext): boolean { /* kiểm tra token */ }
+```
+- **Pipe**: ParseIntPipe, ValidationPipe (global).
+```typescript
+@Get(':id', ParseIntPipe) findOne(@Param('id') id: number) { ... }
+```
+
+---
+
+<!-- Page 8 -->
+## Best Practice khi scale project
+- Chia module theo domain, SharedModule cho logic chung.
+- Sử dụng env/config module cho biến môi trường.
+- Đặt global pipe/guard/interceptor ở main.ts.
+- Luôn dùng DTO + class-validator cho input.
+- Tách logic vào service, controller chỉ nhận request/response.
+- Viết unit test cho service, e2e test cho controller.
+- Tài liệu hóa API với Swagger.
+
+---
+
+<!-- Page 9 -->
+## Custom Provider & Dependency Injection
+- Custom provider với token.
+```typescript
+export const LOGGER = 'LOGGER';
+export const loggerProvider = { provide: LOGGER, useValue: console };
+```
+- Inject vào service qua constructor.
+
+---
+
+<!-- Page 10 -->
+## Middleware
+- Xử lý request trước khi vào controller (logging, auth,...)
+```typescript
+export class LoggerMiddleware implements NestMiddleware {
+  use(req, res, next) { console.log(req.method, req.url); next(); }
+}
+```
+
+## Interceptor
+- Can thiệp vào request/response (transform, logging,...)
+```typescript
+export class TransformInterceptor implements NestInterceptor {
+  intercept(ctx, next) { return next.handle().pipe(map(data => ({ data, success: true })));
+  }
+}
+```
+
+---
+
+<!-- Page 11 -->
+## Exception Filter
+- Xử lý lỗi tập trung, custom response khi có exception.
+```typescript
+@Catch(HttpException)
+export class HttpErrorFilter implements ExceptionFilter {
+  catch(exception, host) { /* custom response */ }
+}
+```
+
+## Swagger
+- Tự động tạo tài liệu API.
+```typescript
+const config = new DocumentBuilder().setTitle('API').setVersion('1.0').build();
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('api', app, document);
+```
+
+---
+
+<!-- Page 12 -->
+## Testing
+- NestJS hỗ trợ unit test (Jest) cho service/controller.
+```typescript
+describe('ProductsService', () => {
+  it('should be defined', () => { expect(service).toBeDefined(); });
+});
+```
+
+---
+
+<!-- Page 13 -->
+## Bài tập thực hành
+- Khởi tạo project NestJS, tạo module/controller/service cho Product
+- Cài class-validator, tạo DTO validate khi tạo Product
+- Tích hợp Swagger, thử viết unit test cho service
+
+---
+
+<!-- Page 14 -->
+## Tham khảo
+- https://docs.nestjs.com/
+- https://www.youtube.com/watch?v=1kF3jX6K8p8 (F8 NestJS cơ bản) 

@@ -1,0 +1,248 @@
+# Buổi 14: Swagger, Error Handling, API Testing (NestJS)
+
+<!-- Page 1 -->
+- Swagger: Tự động sinh tài liệu API, test trực tiếp trên web.
+- Exception Filter: Xử lý lỗi tập trung, trả về response chuẩn.
+- API Testing: Test API hiệu quả với Postman, Newman.
+
+---
+
+<!-- Page 2 -->
+## Câu hỏi mở đầu
+- Làm sao để tự động tạo tài liệu API cho backend?
+- Làm thế nào để trả lỗi API rõ ràng, dễ debug?
+- Test API hiệu quả với Postman như thế nào?
+
+---
+
+<!-- Page 3 -->
+## Swagger là gì? Tích hợp với NestJS
+- Swagger (OpenAPI): Chuẩn mô tả API, sinh docs tự động.
+- NestJS tích hợp sẵn @nestjs/swagger.
+- Cài đặt:
+```bash
+npm install --save @nestjs/swagger swagger-ui-express
+```
+- Cấu hình:
+```typescript
+const config = new DocumentBuilder()
+  .setTitle('Product API')
+  .setDescription('API docs')
+  .setVersion('1.0')
+  .addBearerAuth()
+  .build();
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('api-docs', app, document);
+```
+
+---
+
+<!-- Page 4 -->
+## Decorator mô tả DTO, response
+```typescript
+import { ApiProperty } from '@nestjs/swagger';
+export class ProductDto {
+  @ApiProperty({ example: 'Book', description: 'Product name' })
+  name: string;
+  @ApiProperty({ example: 10, description: 'Product price' })
+  price: number;
+}
+```
+
+---
+
+<!-- Page 5 -->
+## Exception Filter (Error Handling)
+- Exception Filter: Xử lý lỗi tập trung, trả về response chuẩn.
+- Ví dụ custom Exception Filter:
+```typescript
+@Catch(HttpException)
+export class CustomExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const status = exception.getStatus();
+    const message = exception.getResponse();
+    response.status(status).json({
+      statusCode: status,
+      message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+```
+
+---
+
+<!-- Page 6 -->
+## Best practice trả lỗi API
+- Luôn trả về status code đúng (400, 401, 404, 500...)
+- Message rõ ràng, không lộ thông tin nhạy cảm
+- Có thể trả thêm code, timestamp, traceId
+- Định nghĩa error schema trong Swagger
+
+---
+
+<!-- Page 7 -->
+## API Testing với Postman
+- Postman: Test API, gửi request, kiểm tra response, viết test script.
+- Import collection từ Swagger/OpenAPI.
+- Tips:
+  - Tạo collection cho từng module
+  - Sử dụng environment variable cho base URL, token
+  - Viết test script kiểm tra status, body
+  - Lưu example response làm tài liệu
+  - Kết hợp Newman để test tự động (CI/CD)
+
+---
+
+<!-- Page 8 -->
+## Ví dụ nâng cao: Custom Exception Filter & Response Schema
+- Custom Exception Filter trả lỗi chuẩn:
+```typescript
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const status = exception.status || 500;
+    response.status(status).json({
+      statusCode: status,
+      message: exception.message || 'Internal server error',
+      error: exception.name || 'Error',
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+```
+- Định nghĩa response schema cho lỗi trong Swagger:
+```typescript
+@ApiResponse({
+  status: 400,
+  description: 'Bad Request',
+  schema: { example: { statusCode: 400, message: 'Invalid input', error: 'BadRequest', timestamp: '2024-06-01T12:00:00.000Z' } }
+})
+```
+
+---
+
+<!-- Page 9 -->
+## Tips thực tế khi viết docs & test API
+- Luôn cập nhật Swagger khi thay đổi API
+- Đặt example, description rõ ràng cho từng field
+- Định nghĩa schema cho cả response thành công và lỗi
+- Test các case: thành công, lỗi validate, lỗi server, lỗi auth
+- Lưu collection Postman, chia sẻ cho team
+- Kết hợp test tự động với Newman, CI/CD
+
+---
+
+<!-- Page 10 -->
+## Bổ sung thực tế & nâng cao
+- **Swagger nâng cao**:
+  - @ApiTags('product') để nhóm endpoint
+  - Versioning API (v1, v2...)
+  - @ApiHideProperty, @ApiExcludeEndpoint để ẩn field/route
+  - Upload file: @ApiConsumes('multipart/form-data'), @ApiBody
+```typescript
+@ApiTags('product')
+@ApiConsumes('multipart/form-data')
+@ApiBody({ type: FileUploadDto })
+@Post('upload')
+upload(@UploadedFile() file: Express.Multer.File) { ... }
+```
+- **Exception Filter nâng cao**:
+  - Xử lý cả non-HttpException
+  - Log lỗi ra file/service (winston, Sentry...)
+```typescript
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) { /* log lỗi */ }
+}
+```
+- **API Testing nâng cao**:
+  - Test auth flow (login, lấy token, test route cần auth)
+  - Test performance (Postman/Newman)
+  - Mock server với Swagger/Postman
+- **Swagger với Auth**:
+```typescript
+@ApiBearerAuth()
+@UseGuards(AuthGuard)
+@Get('private')
+getPrivateData() { ... }
+```
+- **Unit test Exception Filter**:
+```typescript
+describe('GlobalExceptionFilter', () => {
+  it('should return custom error response', () => { /* ... */ });
+});
+```
+
+---
+
+<!-- Page 11 -->
+## Checklist review tài liệu API (Swagger)
+- [ ] Đầy đủ endpoint, method, path, param, body, query
+- [ ] Mô tả rõ ràng cho từng field (description, example)
+- [ ] Định nghĩa schema cho response thành công và lỗi
+- [ ] Có mô tả status code cho từng endpoint
+- [ ] Định nghĩa rõ các lỗi phổ biến (400, 401, 404, 500...)
+- [ ] Có example cho từng response
+- [ ] Versioning rõ ràng (v1, v2...)
+- [ ] Mô tả auth (Bearer, API key...)
+- [ ] Docs luôn được cập nhật khi thay đổi API
+
+---
+
+<!-- Page 12 -->
+## Best practice khi test API
+- Test đủ các case: thành công, lỗi validate, lỗi server, lỗi auth, lỗi permission
+- Sử dụng environment variable cho base URL, token, param động
+- Viết test script kiểm tra status, body, header, thời gian phản hồi
+- Lưu lại example response để làm tài liệu, so sánh khi regression
+- Kết hợp test tự động với Newman, tích hợp CI/CD
+- Chia sẻ collection Postman cho team, update khi thay đổi API
+- Test với dữ liệu lớn, case đặc biệt (ký tự lạ, null, empty...)
+
+---
+
+<!-- Page 13 -->
+## Ví dụ nâng cao: Exception Filter sinh traceId cho lỗi
+```typescript
+@Catch()
+export class TraceIdExceptionFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const status = exception.status || 500;
+    const traceId = randomUUID();
+    response.status(status).json({
+      statusCode: status,
+      message: exception.message || 'Internal server error',
+      error: exception.name || 'Error',
+      traceId,
+      timestamp: new Date().toISOString(),
+    });
+    // Có thể log traceId + error để debug
+  }
+}
+```
+
+---
+
+<!-- Page 14 -->
+## Bài tập thực hành
+- Tích hợp Swagger cho project NestJS, mô tả đầy đủ DTO, response
+- Viết custom Exception Filter trả lỗi chuẩn
+- Test API với Postman, viết test script kiểm tra response
+- Định nghĩa schema lỗi trong Swagger
+
+---
+
+<!-- Page 15 -->
+## Tham khảo
+- https://docs.nestjs.com/openapi/introduction
+- https://docs.nestjs.com/exception-filters
+- https://learning.postman.com/docs/getting-started/introduction/
+- https://www.npmjs.com/package/newman
+- https://www.youtube.com/watch?v=1kF3jX6K8p8 (F8 Swagger & API Testing) 
