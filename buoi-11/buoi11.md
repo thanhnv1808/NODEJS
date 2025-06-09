@@ -34,6 +34,47 @@
 - **Provider**: Class có thể inject (service, repo,...)
 - **Sơ đồ**: Request → Controller → Service → Provider → Response
 
+<!-- Page 4.1 -->
+## Request Lifecycle trong NestJS
+
+- **NestJS xử lý request qua các layer:** Middleware → Guard → Interceptor → Pipe → Controller → Service → Exception Filter.
+- **Thứ tự thực thi:**
+  1. **Middleware**: Xử lý đầu tiên, thường dùng cho logging, auth, parse body...
+  2. **Guard**: Kiểm tra quyền truy cập, xác thực JWT...
+  3. **Interceptor**: Can thiệp vào request/response, logging, transform dữ liệu...
+  4. **Pipe**: Validate, transform dữ liệu đầu vào (body, param, query...)
+  5. **Controller**: Xử lý route, nhận request, trả response
+  6. **Service**: Xử lý logic nghiệp vụ
+  7. **Exception Filter**: Bắt và xử lý lỗi, trả response lỗi chuẩn
+
+- **Sơ đồ lifecycle:**
+
+```
+Request
+  ↓
+Middleware (Global → Module)
+  ↓
+Guard
+  ↓
+Interceptor (before)
+  ↓
+Pipe
+  ↓
+Controller → Service
+  ↓
+Interceptor (after)
+  ↓
+Exception Filter (nếu có lỗi)
+  ↓
+Response
+```
+
+- **Ví dụ log thứ tự thực thi:**
+  - Middleware log trước, tiếp đến Interceptor, nếu có lỗi sẽ đến Exception Filter.
+  - Khi validate thất bại ở Pipe, request sẽ chuyển ngay đến Exception Filter để trả lỗi.
+
+- **Đọc thêm chi tiết:** [Cách Request Lifecycle hoạt động trong NestJS - Viblo](https://viblo.asia/p/cach-request-lifecycle-hoat-dong-trong-nestjs-y3RL1awpLao)
+
 ---
 
 <!-- Page 5 -->
