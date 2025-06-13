@@ -14,15 +14,42 @@ Have you ever wondered:
 
 ## 1. 📁 File Handling
 
-### 1.1. File Upload Configuration
+### 1.1. Khái niệm và Mục đích
+- Xử lý upload và lưu trữ file từ client
+- Validate file trước khi lưu (kích thước, loại file)
+- Quản lý file an toàn và hiệu quả
+- Tối ưu hiệu năng khi xử lý file lớn
+- Đảm bảo bảo mật khi lưu trữ file
+
+### 1.2. File Upload Configuration
 ```typescript
 // file-upload.constants.ts
 export const FILE_UPLOAD_DESTINATION = 'uploads';
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
+
+// file-upload.config.ts
+export const multerConfig = {
+  storage: diskStorage({
+    destination: FILE_UPLOAD_DESTINATION,
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, file.fieldname + '-' + uniqueSuffix);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+      return cb(new Error('Invalid file type'), false);
+    }
+    cb(null, true);
+  },
+  limits: {
+    fileSize: MAX_FILE_SIZE
+  }
+};
 ```
 
-### 1.2. File Upload Interceptor
+### 1.3. File Upload Interceptor
 ```typescript
 // add-file-upload-to-request-body.interceptor.ts
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
@@ -46,44 +73,57 @@ export class AddFileUploadToRequestBodyInterceptor implements NestInterceptor {
 }
 ```
 
-### 1.3. File Upload Service
+### 1.4. File Upload Service
 ```typescript
-// file-upload.ts
-import { copyFile, mkdir, unlink } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+// file-upload.service.ts
+@Injectable()
+export class FileUploadService {
+  async moveUploadedFile(
+    file: StoredFile,
+    generateFilePathFn: (file: StoredFile) => string,
+  ) {
+    const newPath = generateFilePathFn(file);
+    const parentPath = dirname(newPath);
+    await mkdir(parentPath, { recursive: true });
 
-export const moveUploadedFile = async (
-  file: StoredFile,
-  generateFilePathFn: (file: StoredFile) => string,
-) => {
-  const newPath = generateFilePathFn(file);
-  const parentPath = dirname(newPath);
-  await mkdir(parentPath, { recursive: true });
+    await copyFile(file.path, newPath);
+    await unlink(file.path);
 
-  await copyFile(file.path, newPath);
-  await unlink(file.path);
+    return { ...file, path: newPath };
+  }
 
-  return { ...file, path: newPath };
-};
+  async removeUploadedFiles(files: StoredFile[]) {
+    return Promise.all(
+      files.map((file) => unlink(file.path)),
+    );
+  }
 
-export const removeUploadedFiles = async (files: StoredFile[]) => {
-  return Promise.all(
-    files.map((file) => unlink(file.path)),
-  );
-};
+  async validateFile(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException('Invalid file type');
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      throw new BadRequestException('File too large');
+    }
+  }
+}
 ```
 
-### 1.4. File Upload Controller
+### 1.5. File Upload Controller
 ```typescript
 // tasks.controller.ts
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { AddFileUploadToRequestBodyInterceptor } from '../common/file-upload';
-
 @Controller('tasks')
 export class TasksController {
+  constructor(private readonly fileUploadService: FileUploadService) {}
+
   @Post(':id/upload')
   @UseInterceptors(
-    FileInterceptor('file'),
+    FileInterceptor('file', multerConfig),
     AddFileUploadToRequestBodyInterceptor,
   )
   async uploadFile(
@@ -91,12 +131,17 @@ export class TasksController {
     @Body() body: any,
   ) {
     const file = body.files.file;
+    await this.fileUploadService.validateFile(file);
+    
     const task = await this.tasksService.findOne(id);
-    
     const filePath = `uploads/tasks/${task.id}/${file.filename}`;
-    await moveUploadedFile(file, () => filePath);
     
-    return this.tasksService.updateTaskFile(id, filePath);
+    const movedFile = await this.fileUploadService.moveUploadedFile(
+      file,
+      () => filePath
+    );
+    
+    return this.tasksService.updateTaskFile(id, movedFile.path);
   }
 }
 ```
@@ -105,7 +150,14 @@ export class TasksController {
 
 ## 2. 💾 Database Operations
 
-### 2.1. Pagination
+### 2.1. Khái niệm và Mục đích
+- Thao tác với database hiệu quả
+- Tối ưu query để tăng hiệu năng
+- Xử lý dữ liệu lớn
+- Đảm bảo tính nhất quán của dữ liệu
+- Giảm tải cho database
+
+### 2.2. Pagination
 ```typescript
 // paginate.ts
 export async function paginate<Entity extends ObjectLiteral>(
@@ -136,12 +188,15 @@ export async function paginate<Entity extends ObjectLiteral>(
       total,
       page,
       pageSize: take,
+      totalPages: Math.ceil(total / take),
+      hasNext: page * take < total,
+      hasPrev: page > 1
     },
   };
 }
 ```
 
-### 2.2. Streaming Large Datasets
+### 2.3. Streaming Large Datasets
 ```typescript
 // paginate.ts
 export const paginateStream = async <Entity extends ObjectLiteral>(
@@ -171,7 +226,7 @@ export const paginateStream = async <Entity extends ObjectLiteral>(
 };
 ```
 
-### 2.3. Query Builder
+### 2.4. Query Builder
 ```typescript
 // pg-query.ts
 export class PgQueryBuilder {
@@ -193,6 +248,20 @@ export class PgQueryBuilder {
   ) {
     queryBuilder.orderBy(sortBy, sortOrder);
   }
+
+  static buildRangeClause(
+    queryBuilder: SelectQueryBuilder<any>,
+    field: string,
+    min?: number,
+    max?: number,
+  ) {
+    if (min !== undefined) {
+      queryBuilder.andWhere(`${field} >= :min${field}`, { [`min${field}`]: min });
+    }
+    if (max !== undefined) {
+      queryBuilder.andWhere(`${field} <= :max${field}`, { [`max${field}`]: max });
+    }
+  }
 }
 ```
 
@@ -200,7 +269,14 @@ export class PgQueryBuilder {
 
 ## 3. ⚡ Performance Optimization
 
-### 3.1. Query Optimization
+### 3.1. Khái niệm và Mục đích
+- Tối ưu hiệu năng của ứng dụng
+- Sử dụng caching để tăng tốc độ
+- Monitoring để phát hiện vấn đề
+- Giảm tải cho server
+- Cải thiện trải nghiệm người dùng
+
+### 3.2. Query Optimization
 ```typescript
 // tasks.service.ts
 @Injectable()
@@ -209,17 +285,24 @@ export class TasksService {
     const queryBuilder = this.taskRepository
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.assignee', 'assignee')
-      .leftJoinAndSelect('task.creator', 'creator');
+      .leftJoinAndSelect('task.creator', 'creator')
+      .leftJoinAndSelect('task.category', 'category');
 
     PgQueryBuilder.buildWhereClause(queryBuilder, filters);
     PgQueryBuilder.buildOrderByClause(queryBuilder, 'task.createdAt', 'DESC');
+    PgQueryBuilder.buildRangeClause(
+      queryBuilder,
+      'task.priority',
+      filters.minPriority,
+      filters.maxPriority
+    );
 
     return queryBuilder.getMany();
   }
 }
 ```
 
-### 3.2. Batch Processing
+### 3.3. Batch Processing
 ```typescript
 // tasks.service.ts
 @Injectable()
@@ -238,11 +321,16 @@ export class TasksService {
 }
 ```
 
-### 3.3. Caching
+### 3.4. Caching
 ```typescript
 // tasks.service.ts
 @Injectable()
 export class TasksService {
+  constructor(
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+    private readonly taskRepository: Repository<Task>
+  ) {}
+
   @Cacheable('task', { ttl: 300 })
   async findOne(id: number) {
     return this.taskRepository.findOne(id);
@@ -252,6 +340,50 @@ export class TasksService {
   async update(id: number, dto: UpdateTaskDto) {
     return this.taskRepository.update(id, dto);
   }
+
+  @CacheEvict('task')
+  async delete(id: number) {
+    return this.taskRepository.delete(id);
+  }
+}
+```
+
+### 3.5. Monitoring và Logging
+```typescript
+// logger.service.ts
+@Injectable()
+export class LoggerService {
+  private logger: Logger;
+
+  constructor() {
+    this.logger = new Logger({
+      level: 'info',
+      format: format.combine(
+        format.timestamp(),
+        format.json()
+      ),
+      transports: [
+        new transports.File({ filename: 'error.log', level: 'error' }),
+        new transports.File({ filename: 'combined.log' })
+      ]
+    });
+  }
+
+  log(message: string, context?: string) {
+    this.logger.log(message, context);
+  }
+
+  error(message: string, trace?: string, context?: string) {
+    this.logger.error(message, trace, context);
+  }
+
+  warn(message: string, context?: string) {
+    this.logger.warn(message, context);
+  }
+
+  debug(message: string, context?: string) {
+    this.logger.debug(message, context);
+  }
 }
 ```
 
@@ -260,25 +392,25 @@ export class TasksService {
 ## 💡 Best Practices
 
 ### 1. File Handling
-- Validate file size and type
-- Use secure file names
-- Implement proper cleanup
-- Handle concurrent uploads
-- Use streaming for large files
+- Validate file size và type trước khi lưu
+- Sử dụng tên file unique để tránh conflict
+- Implement proper cleanup cho file tạm
+- Xử lý concurrent uploads an toàn
+- Sử dụng streaming cho file lớn
 
 ### 2. Database Operations
-- Use pagination for large datasets
-- Implement proper indexing
-- Use query builder for complex queries
+- Sử dụng pagination cho large datasets
+- Implement proper indexing cho các trường thường query
+- Sử dụng query builder cho complex queries
 - Implement proper error handling
-- Use transactions when needed
+- Sử dụng transactions khi cần
 
 ### 3. Performance
-- Implement caching strategy
-- Use batch processing
-- Optimize database queries
+- Implement caching strategy phù hợp
+- Sử dụng batch processing cho large datasets
+- Tối ưu database queries
 - Monitor performance metrics
-- Use proper indexing
+- Sử dụng proper indexing
 
 ---
 
@@ -316,4 +448,5 @@ export class TasksService {
 - [NestJS File Upload](https://docs.nestjs.com/techniques/file-upload)
 - [TypeORM Documentation](https://typeorm.io/)
 - [Node.js Streams](https://nodejs.org/api/stream.html)
-- [Redis Caching](https://redis.io/topics/caching) 
+- [Redis Caching](https://redis.io/topics/caching)
+- [Winston Logger](https://github.com/winstonjs/winston) 

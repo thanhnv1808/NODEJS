@@ -14,8 +14,16 @@ Have you ever wondered:
 
 ## 1. 📚 Swagger Integration
 
-### 1.1. Cài đặt và cấu hình
+### 1.1. Khái niệm và Mục đích
+- Swagger (OpenAPI) là công cụ tạo tài liệu API tự động
+- Giúp mô tả API một cách chuẩn hóa và dễ hiểu
+- Tạo giao diện tương tác để test API
+- Giảm thời gian viết tài liệu thủ công
+- Tạo contract rõ ràng giữa frontend và backend
+
+### 1.2. Cài đặt và Cấu hình
 ```bash
+# Cài đặt dependencies
 pnpm add @nestjs/swagger swagger-ui-express
 ```
 
@@ -40,7 +48,7 @@ async function bootstrap() {
 }
 ```
 
-### 1.2. Tài liệu hóa DTO
+### 1.3. Tài liệu hóa DTO và Controller
 ```typescript
 // create-task.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
@@ -61,116 +69,103 @@ export class CreateTaskDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiProperty({
-    example: 'IN_PROGRESS',
-    enum: TaskStatus,
-    description: 'The status of the task',
-  })
-  @IsEnum(TaskStatus)
-  status: TaskStatus;
 }
-```
 
-### 1.3. Tài liệu hóa Controller
-```typescript
 // tasks.controller.ts
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-
 @ApiTags('tasks')
 @Controller('tasks')
 export class TasksController {
-  @ApiOperation({ summary: 'Create a new task' })
+  @ApiOperation({ summary: 'Create new task' })
   @ApiResponse({ 
     status: 201, 
-    description: 'The task has been successfully created.',
-    type: TaskDto 
+    description: 'Task created successfully',
+    type: TaskResponseDto 
   })
-  @ApiResponse({ status: 400, description: 'Bad request.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Invalid input',
+    type: ErrorResponseDto 
+  })
   @Post()
-  create(@Body() dto: CreateTaskDto) {
-    return this.tasksService.create(dto);
+  create(@Body() createTaskDto: CreateTaskDto) {
+    return this.tasksService.create(createTaskDto);
   }
 }
 ```
 
 ---
 
-## 2. 🛡️ Error Handling
+## 2. 🚨 Error Handling
 
-### 2.1. Custom Exception
+### 2.1. Khái niệm và Mục đích
+- Xử lý lỗi một cách nhất quán trong toàn bộ ứng dụng
+- Format lỗi theo chuẩn để client dễ xử lý
+- Log lỗi để debug và monitoring
+- Đảm bảo response lỗi nhất quán
+- Tăng tính bảo mật bằng cách không lộ thông tin nhạy cảm
+
+### 2.2. Custom Exception
 ```typescript
-// application.error.ts
-export class ApplicationError extends Error {
+// business.exception.ts
+export class BusinessException extends HttpException {
   constructor(
-    public readonly code: string,
-    public readonly message: string,
-    public readonly status: number = 400,
+    message: string,
+    errorCode: string,
+    status: number = HttpStatus.BAD_REQUEST,
+    details?: any
   ) {
-    super(message);
+    super(
+      {
+        message,
+        errorCode,
+        timestamp: new Date().toISOString(),
+        details,
+        traceId: randomUUID()
+      },
+      status
+    );
   }
 }
 
-// not-found.errors.ts
-export class NotFoundError extends ApplicationError {
-  constructor(message: string) {
-    super('NOT_FOUND', message, 404);
-  }
-}
-
-// validation.errors.ts
-export class ValidationError extends ApplicationError {
-  constructor(message: string) {
-    super('VALIDATION_ERROR', message, 400);
-  }
-}
-```
-
-### 2.2. Exception Filter
-```typescript
-// http-exception.filter.ts
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
-import { Response } from 'express';
-
-@Catch(HttpException)
-export class HttpExceptionFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const status = exception.getStatus();
-    const exceptionResponse = exception.getResponse();
-
-    response.status(status).json({
-      statusCode: status,
-      timestamp: new Date().toISOString(),
-      path: ctx.getRequest().url,
-      message: exceptionResponse['message'] || exception.message,
-    });
-  }
-}
-```
-
-### 2.3. Sử dụng trong Service
-```typescript
-// tasks.service.ts
+// Sử dụng trong service
 @Injectable()
 export class TasksService {
   async findOne(id: number) {
-    const task = await this.taskRepository.findOne(id);
+    const task = await this.repository.findOne(id);
     if (!task) {
-      throw new NotFoundError(`Task with ID ${id} not found`);
+      throw new BusinessException(
+        'Task not found',
+        'TASK_NOT_FOUND',
+        HttpStatus.NOT_FOUND,
+        { taskId: id }
+      );
     }
     return task;
   }
+}
+```
 
-  async create(dto: CreateTaskDto) {
-    try {
-      const task = this.taskRepository.create(dto);
-      return await this.taskRepository.save(task);
-    } catch (error) {
-      throw new ValidationError('Invalid task data');
-    }
+### 2.3. Exception Filter
+```typescript
+// global-exception.filter.ts
+@Catch()
+export class GlobalExceptionFilter implements ExceptionFilter {
+  catch(exception: any, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const request = ctx.getRequest();
+    
+    const status = exception.status || 500;
+    const message = exception.message || 'Internal server error';
+    
+    response.status(status).json({
+      statusCode: status,
+      message,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+      method: request.method,
+      traceId: randomUUID()
+    });
   }
 }
 ```
@@ -179,148 +174,58 @@ export class TasksService {
 
 ## 3. 🧪 API Testing
 
-### 3.1. Unit Testing với Jest
-```typescript
-// tasks.service.spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { TasksService } from './tasks.service';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { Task } from './entities/task.entity';
+### 3.1. Khái niệm và Mục đích
+- Kiểm tra API hoạt động đúng như mong đợi
+- Đảm bảo chất lượng và độ tin cậy của API
+- Phát hiện lỗi sớm trong quá trình phát triển
+- Tự động hóa quá trình test
+- Tăng độ tin cậy của hệ thống
 
-describe('TasksService', () => {
+### 3.2. Unit Testing với Jest
+```typescript
+// tasks.controller.spec.ts
+describe('TasksController', () => {
+  let controller: TasksController;
   let service: TasksService;
-  let repository: Repository<Task>;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TasksService,
-        {
-          provide: getRepositoryToken(Task),
-          useClass: Repository,
-        },
-      ],
+    const module = await Test.createTestingModule({
+      controllers: [TasksController],
+      providers: [TasksService]
     }).compile();
 
-    service = module.get<TasksService>(TasksService);
-    repository = module.get<Repository<Task>>(getRepositoryToken(Task));
+    controller = module.get(TasksController);
+    service = module.get(TasksService);
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('findOne', () => {
-    it('should return a task', async () => {
-      const task = new Task();
-      jest.spyOn(repository, 'findOne').mockResolvedValue(task);
-
-      expect(await service.findOne(1)).toBe(task);
-    });
-
-    it('should throw NotFoundError if task not found', async () => {
-      jest.spyOn(repository, 'findOne').mockResolvedValue(null);
-
-      await expect(service.findOne(1)).rejects.toThrow(NotFoundError);
-    });
+  it('should create task', async () => {
+    const createTaskDto = {
+      name: 'Test Task',
+      description: 'Test Description'
+    };
+    
+    const result = await controller.create(createTaskDto);
+    expect(result).toHaveProperty('id');
+    expect(result.name).toBe(createTaskDto.name);
   });
 });
 ```
 
-### 3.2. E2E Testing
-```typescript
-// tasks.e2e-spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { AppModule } from '../src/app.module';
-
-describe('TasksController (e2e)', () => {
-  let app: INestApplication;
-
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-  });
-
-  it('/tasks (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/tasks')
-      .expect(200)
-      .expect((res) => {
-        expect(Array.isArray(res.body)).toBeTruthy();
-      });
-  });
-
-  it('/tasks (POST)', () => {
-    return request(app.getHttpServer())
-      .post('/tasks')
-      .send({
-        name: 'Test Task',
-        status: 'TODO',
-      })
-      .expect(201)
-      .expect((res) => {
-        expect(res.body.name).toBe('Test Task');
-      });
-  });
+### 3.3. API Testing với Postman
+```javascript
+// Test script trong Postman
+pm.test("Task creation successful", function () {
+  pm.response.to.have.status(201);
+  const response = pm.response.json();
+  pm.expect(response).to.have.property('id');
+  pm.expect(response.name).to.eql(pm.request.body.name);
 });
-```
 
-### 3.3. Postman Collection
-```json
-{
-  "info": {
-    "name": "Task Management API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Tasks",
-      "item": [
-        {
-          "name": "Get All Tasks",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/tasks",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ]
-          }
-        },
-        {
-          "name": "Create Task",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/tasks",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"New Task\",\n  \"status\": \"TODO\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
+pm.test("Response has correct structure", function () {
+  const response = pm.response.json();
+  pm.expect(response).to.have.property('data');
+  pm.expect(response).to.have.property('meta');
+});
 ```
 
 ---
@@ -328,66 +233,60 @@ describe('TasksController (e2e)', () => {
 ## 💡 Best Practices
 
 ### 1. Swagger Documentation
-- Sử dụng @ApiProperty cho mọi DTO
-- Thêm mô tả chi tiết cho mỗi endpoint
-- Phân loại API theo tags
-- Tài liệu hóa response codes
+- Luôn cập nhật Swagger khi thay đổi API
+- Đặt example, description rõ ràng cho từng field
+- Định nghĩa schema cho cả response thành công và lỗi
+- Sử dụng @ApiTags để nhóm các endpoint liên quan
+- Thêm authentication vào Swagger UI
 
 ### 2. Error Handling
-- Tạo custom exceptions cho từng loại lỗi
-- Implement global exception filter
-- Log đầy đủ thông tin lỗi
-- Trả về message thân thiện với user
+- Sử dụng custom exception cho các lỗi nghiệp vụ
+- Format lỗi nhất quán trong toàn bộ ứng dụng
+- Log đầy đủ thông tin lỗi để debug
+- Không lộ thông tin nhạy cảm trong response lỗi
+- Thêm traceId để theo dõi lỗi
 
-### 3. Testing Strategy
-- Unit test cho service logic
-- E2E test cho API endpoints
-- Test các error cases
-- Sử dụng test database
-
-### 4. API Testing
-- Tổ chức Postman collection theo module
-- Sử dụng environment variables
-- Tự động hóa test với Newman
-- Test các edge cases
+### 3. API Testing
+- Viết test case cho tất cả các endpoint
+- Test các case: thành công, lỗi validate, lỗi server
+- Sử dụng environment variables trong Postman
+- Tự động hóa test CI/CD
+- Lưu collection Postman để chia sẻ với team
 
 ---
 
 ## ✅ Checklist review
-- [ ] Swagger documentation đầy đủ
-- [ ] Custom exceptions cho mọi error case
-- [ ] Global exception filter hoạt động
-- [ ] Unit tests cho service
-- [ ] E2E tests cho API
-- [ ] Postman collection đầy đủ
-- [ ] Test coverage đạt yêu cầu
-- [ ] CI/CD pipeline cho testing
+- [ ] Swagger documentation đầy đủ và rõ ràng
+- [ ] Error handling nhất quán và an toàn
+- [ ] Unit test cho controller và service
+- [ ] API test với Postman
+- [ ] Tự động hóa test với CI/CD
 
 ---
 
 ## 📝 Bài tập thực hành
-1. Tài liệu hóa API với Swagger:
+1. Tích hợp Swagger cho project:
    - Cấu hình Swagger
-   - Tài liệu hóa DTOs
-   - Tài liệu hóa Controllers
+   - Tài liệu hóa DTO và Controller
+   - Thêm authentication
 
 2. Implement Error Handling:
-   - Custom exceptions
+   - Custom exception
    - Exception filter
    - Error logging
 
-3. Viết Tests:
-   - Unit tests cho services
-   - E2E tests cho APIs
-   - Postman collection
+3. Viết Test Cases:
+   - Unit test với Jest
+   - API test với Postman
+   - Tự động hóa test
 
 ---
 
 ## 🔗 Tham khảo / References
 - [NestJS Swagger](https://docs.nestjs.com/openapi/introduction)
 - [NestJS Exception Filters](https://docs.nestjs.com/exception-filters)
+- [Postman Learning Center](https://learning.postman.com/)
 - [Jest Documentation](https://jestjs.io/docs/getting-started)
-- [Postman Documentation](https://learning.postman.com/docs/)
 
 ---
 
@@ -409,7 +308,7 @@ describe('TasksController (e2e)', () => {
 - Sử dụng environment variable cho base URL, token, param động
 - Viết test script kiểm tra status, body, header, thời gian phản hồi
 - Lưu lại example response để làm tài liệu, so sánh khi regression
-- Kết hợp test tự động với Newman, tích hợp CI/CD
+- Kết hợp test tự động tích hợp CI/CD
 - Chia sẻ collection Postman cho team, update khi thay đổi API
 - Test với dữ liệu lớn, case đặc biệt (ký tự lạ, null, empty...)
 
