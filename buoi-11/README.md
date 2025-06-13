@@ -110,6 +110,7 @@ export class CreateProductDto {
 - Leverage VSCode's autocomplete and type checking
 - Read and fix TypeScript errors thoroughly
 
+Tài liệu: https://www.typescriptlang.org/docs/
 ---
 
 ## 1. 🚀 NestJS là gì?
