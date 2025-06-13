@@ -191,8 +191,11 @@ Request → Controller → Service → (Provider/Repository) → Response
 
 ### Cài đặt Nest CLI
 ```bash
-npm i -g @nestjs/cli
+# Using pnpm
+pnpm add -g @nestjs/cli
 nest new my-nest-app
+cd my-nest-app
+pnpm start:dev
 ```
 
 ### Tạo module + controller + service
