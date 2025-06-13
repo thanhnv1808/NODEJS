@@ -49,99 +49,160 @@ export const multerConfig = {
 };
 ```
 
-### 1.3. File Upload Interceptor
-```typescript
-// add-file-upload-to-request-body.interceptor.ts
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { getUploadedFilesFromRequestAsMap } from './file-upload';
-
-@Injectable()
-export class AddFileUploadToRequestBodyInterceptor implements NestInterceptor {
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
-    const request = context.switchToHttp().getRequest();
-    const uploadedFiles = await getUploadedFilesFromRequestAsMap(request);
-    
-    return next.handle().pipe(
-      map((data) => ({
-        ...data,
-        files: uploadedFiles,
-      })),
-    );
-  }
-}
-```
-
-### 1.4. File Upload Service
+### 1.3. File Upload Service
 ```typescript
 // file-upload.service.ts
 @Injectable()
 export class FileUploadService {
-  async moveUploadedFile(
-    file: StoredFile,
-    generateFilePathFn: (file: StoredFile) => string,
-  ) {
-    const newPath = generateFilePathFn(file);
-    const parentPath = dirname(newPath);
-    await mkdir(parentPath, { recursive: true });
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly logger: LoggerService
+  ) {}
 
-    await copyFile(file.path, newPath);
-    await unlink(file.path);
+  async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
+    try {
+      // Validate file
+      if (!file) {
+        throw new BadRequestException('No file uploaded');
+      }
 
-    return { ...file, path: newPath };
+      if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
+        throw new BadRequestException('Invalid file type');
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        throw new BadRequestException('File too large');
+      }
+
+      // Create folder if not exists
+      const uploadPath = join(FILE_UPLOAD_DESTINATION, folder);
+      await mkdir(uploadPath, { recursive: true });
+
+      // Generate unique filename
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const filename = `${file.fieldname}-${uniqueSuffix}${extname(file.originalname)}`;
+      const filepath = join(uploadPath, filename);
+
+      // Move file to destination
+      await copyFile(file.path, filepath);
+      await unlink(file.path);
+
+      // Return relative path
+      return join(folder, filename);
+    } catch (error) {
+      this.logger.error('File upload failed', error);
+      throw new InternalServerErrorException('File upload failed');
+    }
   }
 
-  async removeUploadedFiles(files: StoredFile[]) {
-    return Promise.all(
-      files.map((file) => unlink(file.path)),
-    );
-  }
-
-  async validateFile(file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('No file uploaded');
-    }
-
-    if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException('Invalid file type');
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      throw new BadRequestException('File too large');
+  async deleteFile(filepath: string): Promise<void> {
+    try {
+      const fullPath = join(FILE_UPLOAD_DESTINATION, filepath);
+      await unlink(fullPath);
+    } catch (error) {
+      this.logger.error('File deletion failed', error);
+      throw new InternalServerErrorException('File deletion failed');
     }
   }
 }
 ```
 
-### 1.5. File Upload Controller
+### 1.4. File Upload Controller
 ```typescript
 // tasks.controller.ts
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly fileUploadService: FileUploadService) {}
+  constructor(
+    private readonly tasksService: TasksService,
+    private readonly fileUploadService: FileUploadService
+  ) {}
 
   @Post(':id/upload')
-  @UseInterceptors(
-    FileInterceptor('file', multerConfig),
-    AddFileUploadToRequestBodyInterceptor,
-  )
+  @UseInterceptors(FileInterceptor('file', multerConfig))
   async uploadFile(
     @Param('id') id: number,
-    @Body() body: any,
+    @UploadedFile() file: Express.Multer.File
   ) {
-    const file = body.files.file;
-    await this.fileUploadService.validateFile(file);
-    
+    // Validate task exists
     const task = await this.tasksService.findOne(id);
-    const filePath = `uploads/tasks/${task.id}/${file.filename}`;
-    
-    const movedFile = await this.fileUploadService.moveUploadedFile(
-      file,
-      () => filePath
-    );
-    
-    return this.tasksService.updateTaskFile(id, movedFile.path);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    // Upload file
+    const filepath = await this.fileUploadService.uploadFile(file, `tasks/${id}`);
+
+    // Update task with file path
+    return this.tasksService.updateTaskFile(id, filepath);
+  }
+
+  @Delete(':id/file')
+  async deleteFile(@Param('id') id: number) {
+    // Validate task exists
+    const task = await this.tasksService.findOne(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+
+    // Delete file if exists
+    if (task.filepath) {
+      await this.fileUploadService.deleteFile(task.filepath);
+    }
+
+    // Update task to remove file path
+    return this.tasksService.updateTaskFile(id, null);
+  }
+}
+```
+
+### 1.5. Task Entity với File
+```typescript
+// task.entity.ts
+@Entity()
+export class Task {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  name: string;
+
+  @Column({ nullable: true })
+  description: string;
+
+  @Column({ nullable: true })
+  filepath: string;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  updatedAt: Date;
+}
+```
+
+### 1.6. Task Service với File Operations
+```typescript
+// tasks.service.ts
+@Injectable()
+export class TasksService {
+  constructor(
+    @InjectRepository(Task)
+    private readonly taskRepository: Repository<Task>
+  ) {}
+
+  async findOne(id: number): Promise<Task> {
+    const task = await this.taskRepository.findOne(id);
+    if (!task) {
+      throw new NotFoundException(`Task with ID ${id} not found`);
+    }
+    return task;
+  }
+
+  async updateTaskFile(id: number, filepath: string | null): Promise<Task> {
+    const task = await this.findOne(id);
+    task.filepath = filepath;
+    task.updatedAt = new Date();
+    return this.taskRepository.save(task);
   }
 }
 ```

@@ -206,7 +206,7 @@ export function IsValidTaskStatus(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       validator: {
-        validate(value: any) {
+        validate(value: Option) {
           return Object.values(TaskStatus).includes(value);
         },
       },

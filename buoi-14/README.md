@@ -112,7 +112,7 @@ export class BusinessException extends HttpException {
     message: string,
     errorCode: string,
     status: number = HttpStatus.BAD_REQUEST,
-    details?: any
+    details?: Options
   ) {
     super(
       {
@@ -322,7 +322,7 @@ import { randomUUID } from 'crypto';
 
 @Catch()
 export class TraceIdExceptionFilter implements ExceptionFilter {
-  catch(exception: any, host: ArgumentsHost) {
+  catch(exception: Exception, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
     const status = exception.status || 500;
