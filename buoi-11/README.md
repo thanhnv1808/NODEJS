@@ -138,6 +138,18 @@ export class CreateProductDto {
 | **Cộng đồng / Tài liệu**    | Rộng, chung cho JS             | Rộng, lâu đời                    | Cộng đồng đang phát triển, tài liệu chính thức rõ ràng                |
 | **Use case phù hợp**        | Tool/script nhỏ                | App nhỏ/trung                   | App trung/lớn, dự án enterprise, microservices                        |
 
+
+## ⚖️ So sánh: Module, Controller, Service trong NestJS vs Express
+
+| Thành phần           | Express                            | NestJS                                                                 |
+|----------------------|-------------------------------------|------------------------------------------------------------------------|
+| **Module**           | ❌ Không có khái niệm module riêng  | ✅ Là đơn vị tổ chức logic, gom controller + service liên quan lại với nhau (`AppModule`, `UserModule`, ...) |
+| **Controller**       | ✅ Route handler (app.get, app.post...) viết trực tiếp trong file | ✅ Class với decorator `@Controller()`, định nghĩa rõ ràng các endpoint, dễ test và tổ chức |
+| **Service**          | ❌ Logic thường viết chung trong route hoặc chia file thủ công | ✅ Class có decorator `@Injectable()`, chuyên xử lý logic nghiệp vụ, dễ inject và tái sử dụng |
+| **Tổ chức mã nguồn** | 🧩 Tự do, dễ rối với dự án lớn       | 🧱 Theo kiến trúc chuẩn MVC + Dependency Injection, dễ scale và bảo trì |
+| **Kết nối giữa các phần** | 👷‍♂️ Tự xử lý, dùng `require`/`import` thủ công | 🤖 Nest tự inject service vào controller bằng DI container, dễ kiểm soát và mở rộng |
+| **Testability**      | 😓 Khó test độc lập từng phần        | 🧪 Dễ dàng mock, unit test service/controller nhờ kiến trúc module hóa |
+
 ### ✅ Tại sao nên dùng NestJS?
 - ✔ Kiến trúc rõ ràng, dễ tổ chức code
 - ✔ Được thiết kế sẵn để scale lên production
@@ -147,6 +159,8 @@ export class CreateProductDto {
 - ✔ Học NestJS cũng giúp bạn hiểu kiến trúc hiện đại giống Angular/Spring Boot
 
 ---
+
+
 
 ## 2. 🏗️ Kiến trúc cơ bản của NestJS
 
