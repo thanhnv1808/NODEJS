@@ -257,4 +257,3 @@ describe('AuthGuard', () => {
 - [NestJS Auth & JWT](https://docs.nestjs.com/security/authentication)
 - [NestJS Guards](https://docs.nestjs.com/guards)
 - [JWT.io](https://jwt.io/)
-- [F8: JWT & Auth (Video tiếng Việt)](https://www.youtube.com/watch?v=2jqok-WgelI) 
