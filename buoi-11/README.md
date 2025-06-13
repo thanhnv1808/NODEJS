@@ -435,4 +435,3 @@ describe('ProductsService', () => {
 - [NestJS CLI](https://docs.nestjs.com/cli/overview)
 - [NestJS Providers](https://docs.nestjs.com/providers)
 - [NestJS Dependency Injection](https://docs.nestjs.com/fundamentals/custom-providers)
-- [F8: NestJS cơ bản (Video tiếng Việt)](https://www.youtube.com/watch?v=1kF3jX6K8p8) 
