@@ -210,8 +210,6 @@ describe('GlobalExceptionFilter', () => {
 - [NestJS Swagger](https://docs.nestjs.com/openapi/introduction)
 - [NestJS Exception Filter](https://docs.nestjs.com/exception-filters)
 - [Postman Docs](https://learning.postman.com/docs/getting-started/introduction/)
-- [Newman CLI](https://www.npmjs.com/package/newman)
-- [F8: Swagger & API Testing (Video tiếng Việt)](https://www.youtube.com/watch?v=1kF3jX6K8p8)
 
 ---
 
