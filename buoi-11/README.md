@@ -120,14 +120,31 @@ export class CreateProductDto {
 - Tích hợp sẵn validation, guard, pipe, interceptor, middleware
 - Dễ test, dễ tổ chức code lớn
 
-### So sánh nhanh với Express
-| Tiêu chí | Express | NestJS |
-|----------|---------|--------|
-| Kiến trúc | Tự do, không ràng buộc | Module hóa, rõ ràng |
-| DI | Không có | Có sẵn, mạnh mẽ |
-| Decorator | Không | Có (TypeScript) |
-| Test | Tự setup | Hỗ trợ tốt |
-| Tích hợp | Thủ công | Có sẵn (Swagger, Validation, Auth...) |
+---
+
+## 📊 So sánh Node.js, Express và NestJS
+
+| Tiêu chí                     | Node.js                        | Express                          | NestJS                                                                 |
+|-----------------------------|--------------------------------|----------------------------------|------------------------------------------------------------------------|
+| **Mục tiêu chính**          | Runtime (nền tảng chạy JS)     | Web framework siêu nhẹ           | Framework toàn diện cho server-side app                               |
+| **Cấp độ trừu tượng**       | Rất thấp (core module thuần)   | Trung bình (HTTP layer cơ bản)   | Cao (Module hóa, DI, Decorator...)                                     |
+| **Kiến trúc**               | Tuỳ bạn tự xây                 | Không ràng buộc, tự tổ chức      | Rõ ràng: Module → Controller → Service → Provider                     |
+| **Khả năng mở rộng dự án** | Rất khó nếu không có framework | Dễ rối nếu codebase lớn          | Dễ mở rộng và bảo trì, kiến trúc giống Angular                        |
+| **Dependency Injection (DI)** | Không có                      | Không có                         | Có sẵn, mạnh mẽ, dễ dùng                                               |
+| **TypeScript hỗ trợ**       | Có thể dùng, nhưng thủ công     | Hỗ trợ TS nhưng không tối ưu     | Xây dựng trên TypeScript, tận dụng tối đa type safety                  |
+| **Decorators**              | Không                          | Không                            | Có, dựa trên ES Decorators (@Controller, @Injectable, ...)            |
+| **Tích hợp sẵn các tính năng** | Không                        | Không                            | Có sẵn: Validation, Auth, Swagger, Middleware, Guard, Pipe, Interceptor |
+| **Testing hỗ trợ**          | Không có                       | Phải tự setup                    | Hỗ trợ tốt với Jest, TestingModule                                     |
+| **Cộng đồng / Tài liệu**    | Rộng, chung cho JS             | Rộng, lâu đời                    | Cộng đồng đang phát triển, tài liệu chính thức rõ ràng                |
+| **Use case phù hợp**        | Tool/script nhỏ                | App nhỏ/trung                   | App trung/lớn, dự án enterprise, microservices                        |
+
+### ✅ Tại sao nên dùng NestJS?
+- ✔ Kiến trúc rõ ràng, dễ tổ chức code
+- ✔ Được thiết kế sẵn để scale lên production
+- ✔ Làm việc tốt với TypeScript (code an toàn, dễ đọc)
+- ✔ Đầy đủ công cụ cho API hiện đại (Swagger, Auth, Pipe, Guard...)
+- ✔ Cộng đồng lớn mạnh và đang phát triển nhanh
+- ✔ Học NestJS cũng giúp bạn hiểu kiến trúc hiện đại giống Angular/Spring Boot
 
 ---
 
