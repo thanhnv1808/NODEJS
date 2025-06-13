@@ -260,4 +260,3 @@ create(
 - [NestJS Validation](https://docs.nestjs.com/techniques/validation)
 - [class-validator Docs](https://github.com/typestack/class-validator)
 - [NestJS Pipes](https://docs.nestjs.com/pipes)
-- [F8: NestJS Validation (Video tiếng Việt)](https://www.youtube.com/watch?v=1kF3jX6K8p8) 
