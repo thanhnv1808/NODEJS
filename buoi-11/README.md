@@ -139,57 +139,74 @@ Tài liệu: https://www.typescriptlang.org/docs/
 | **Cộng đồng / Tài liệu**    | Rộng, chung cho JS             | Rộng, lâu đời                    | Cộng đồng đang phát triển, tài liệu chính thức rõ ràng                |
 | **Use case phù hợp**        | Tool/script nhỏ                | App nhỏ/trung                   | App trung/lớn, dự án enterprise, microservices                        |
 
-
-## ⚖️ So sánh: Module, Controller, Service trong NestJS vs Express
-
-| Thành phần           | Express                            | NestJS                                                                 |
-|----------------------|-------------------------------------|------------------------------------------------------------------------|
-| **Module**           | ❌ Không có khái niệm module riêng  | ✅ Là đơn vị tổ chức logic, gom controller + service liên quan lại với nhau (`AppModule`, `UserModule`, ...) |
-| **Controller**       | ✅ Route handler (app.get, app.post...) viết trực tiếp trong file | ✅ Class với decorator `@Controller()`, định nghĩa rõ ràng các endpoint, dễ test và tổ chức |
-| **Service**          | ❌ Logic thường viết chung trong route hoặc chia file thủ công | ✅ Class có decorator `@Injectable()`, chuyên xử lý logic nghiệp vụ, dễ inject và tái sử dụng |
-| **Tổ chức mã nguồn** | 🧩 Tự do, dễ rối với dự án lớn       | 🧱 Theo kiến trúc chuẩn MVC + Dependency Injection, dễ scale và bảo trì |
-| **Kết nối giữa các phần** | 👷‍♂️ Tự xử lý, dùng `require`/`import` thủ công | 🤖 Nest tự inject service vào controller bằng DI container, dễ kiểm soát và mở rộng |
-| **Testability**      | 😓 Khó test độc lập từng phần        | 🧪 Dễ dàng mock, unit test service/controller nhờ kiến trúc module hóa |
-
-### ✅ Tại sao nên dùng NestJS?
-- ✔ Kiến trúc rõ ràng, dễ tổ chức code
-- ✔ Được thiết kế sẵn để scale lên production
-- ✔ Làm việc tốt với TypeScript (code an toàn, dễ đọc)
-- ✔ Đầy đủ công cụ cho API hiện đại (Swagger, Auth, Pipe, Guard...)
-- ✔ Cộng đồng lớn mạnh và đang phát triển nhanh
-- ✔ Học NestJS cũng giúp bạn hiểu kiến trúc hiện đại giống Angular/Spring Boot
-
 ---
 
-
-
 ## 2. 🏗️ Kiến trúc cơ bản của NestJS
+
+### 2.1. Các thành phần chính
 
 - **Module**: Đơn vị tổ chức lớn nhất, gom controller/service liên quan
 - **Controller**: Nhận request, trả response (giống Express route handler)
 - **Service**: Xử lý logic nghiệp vụ, inject vào controller
 - **Provider**: Bất kỳ class nào có thể inject (service, repo, ...)
 
-### Sơ đồ luồng
-```
-Request → Controller → Service → (Provider/Repository) → Response
+### 2.2. Dependency Injection trong NestJS
+
+```typescript
+// product.service.ts
+@Injectable()
+export class ProductService {
+  constructor(
+    @InjectRepository(Product)
+    private productRepo: Repository<Product>,
+    private configService: ConfigService
+  ) {}
+}
+
+// product.controller.ts
+@Controller('products')
+export class ProductController {
+  constructor(private productService: ProductService) {}
+}
 ```
 
-### Ví dụ cấu trúc thư mục
+### 2.3. Domain-Driven Design (DDD) trong NestJS
+
 ```
 📦 src
- ┣ 📂 products
- ┃ ┣ 📜 products.controller.ts
- ┃ ┣ 📜 products.service.ts
- ┃ ┣ 📜 products.module.ts
- ┣ 📜 app.module.ts
+ ┣ 📂 modules
+ ┃ ┣ 📂 products
+ ┃ ┃ ┣ 📂 domain
+ ┃ ┃ ┃ ┣ 📜 product.entity.ts
+ ┃ ┃ ┃ ┣ 📜 product.repository.ts
+ ┃ ┃ ┃ ┗ 📜 product.service.ts
+ ┃ ┃ ┣ 📂 application
+ ┃ ┃ ┃ ┣ 📜 product.controller.ts
+ ┃ ┃ ┃ ┗ 📜 product.dto.ts
+ ┃ ┃ ┗ 📜 product.module.ts
+ ┃ ┗ 📂 users
+ ┃   ┣ 📂 domain
+ ┃   ┃ ┣ 📜 user.entity.ts
+ ┃   ┃ ┗ 📜 user.service.ts
+ ┃   ┣ 📂 application
+ ┃   ┃ ┣ 📜 user.controller.ts
+ ┃   ┃ ┗ 📜 user.dto.ts
+ ┃   ┗ 📜 user.module.ts
+ ┣ 📂 shared
+ ┃ ┣ 📂 infrastructure
+ ┃ ┃ ┣ 📜 database.module.ts
+ ┃ ┃ ┗ 📜 config.module.ts
+ ┃ ┗ 📂 utils
+ ┃   ┣ 📜 logger.ts
+ ┃   ┗ 📜 validators.ts
+ ┗ 📜 app.module.ts
 ```
 
 ---
 
 ## 3. ⚡ Bắt đầu với NestJS (TypeScript)
 
-### Cài đặt Nest CLI
+### 3.1. Cài đặt Nest CLI
 ```bash
 # Using pnpm
 pnpm add -g @nestjs/cli
@@ -198,14 +215,14 @@ cd my-nest-app
 pnpm start:dev
 ```
 
-### Tạo module + controller + service
+### 3.2. Tạo module + controller + service
 ```bash
 nest g module products
 nest g controller products
 nest g service products
 ```
 
-### Ví dụ Product CRUD (products.controller.ts)
+### 3.3. Ví dụ Product CRUD (products.controller.ts)
 ```typescript
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ProductsService } from './products.service';
@@ -233,208 +250,95 @@ export class ProductsController {
 
 ---
 
-## 💡 Tips thực tế khi dùng NestJS
-- Luôn chia nhỏ module theo domain (products, users, orders...)
-- Inject service qua constructor, không dùng new trực tiếp
-- Dùng DTO + class-validator để validate dữ liệu vào
-- Sử dụng guard cho auth, role-based access
-- Tận dụng pipe để transform/validate dữ liệu
-- Tích hợp Swagger cho tài liệu API tự động
-- Viết unit test cho service, controller
-- Đọc kỹ error NestJS, tận dụng CLI để generate code
+## 💡 Best Practices khi tổ chức code NestJS
+
+### 1. Module Organization
+- Chia module theo domain (products, users, orders...)
+- Mỗi module nên có một trách nhiệm rõ ràng
+- Sử dụng shared module cho code dùng chung
+- Tránh circular dependency giữa các module
+
+### 2. Service Layer
+- Service chứa business logic
+- Mỗi service nên có một trách nhiệm cụ thể
+- Sử dụng interface cho service để dễ test
+- Inject dependencies qua constructor
+
+### 3. Controller Design
+- Controller chỉ xử lý HTTP request/response
+- Validate input với DTO
+- Trả về response chuẩn
+- Xử lý error với exception filter
+
+### 4. Error Handling
+- Sử dụng custom exception
+- Implement global exception filter
+- Log error đầy đủ
+- Trả về error message rõ ràng
+
+### 5. Testing Strategy
+- Unit test cho service
+- E2E test cho controller
+- Mock external dependencies
+- Test error cases
 
 ---
 
-## 🌟 Ví dụ nâng cao: Guard & Pipe
+## 🌟 Ví dụ nâng cao: Custom Provider & Factory
 
-### Guard: AuthGuard kiểm tra JWT
+### Custom Provider
 ```typescript
-// auth.guard.ts
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-
-@Injectable()
-export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
-  canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-    const auth = req.headers['authorization'];
-    if (!auth) throw new UnauthorizedException('No token');
-    const token = auth.replace('Bearer ', '');
-    try {
-      req.user = this.jwtService.verify(token);
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-  }
-}
-```
-
-### Pipe: ParseIntPipe & Custom ValidationPipe
-```typescript
-// Sử dụng ParseIntPipe cho param
-@Get(':id')
-findOne(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.findOne(id);
-}
-
-// Custom ValidationPipe (global)
-import { ValidationPipe } from '@nestjs/common';
-// main.ts
-app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
-```
-
----
-
-## 💡 Best Practice khi scale project NestJS
-- Chia module theo domain (products, users, orders...), dùng SharedModule cho logic dùng chung
-- Sử dụng env/config module để quản lý biến môi trường
-- Đặt global pipe/guard/interceptor ở main.ts để áp dụng toàn app
-- Luôn dùng DTO + class-validator cho mọi input
-- Tách logic nghiệp vụ vào service, controller chỉ nhận request/response
-- Viết unit test cho service, e2e test cho controller
-- Tài liệu hóa API với Swagger, update khi thay đổi
-- Tổ chức folder rõ ràng, tránh file quá dài
-- Tận dụng CLI để generate code, tránh lặp lại
-- Đọc kỹ error, tận dụng log/debug của NestJS
-
----
-
-## 🌟 Ví dụ nâng cao: Custom Provider & Dependency Injection
-
-### Custom provider (token-based)
-```typescript
-// logger.provider.ts
-export const LOGGER = 'LOGGER';
-export const loggerProvider = {
-  provide: LOGGER,
-  useValue: console,
-};
-
-// app.module.ts
-import { Module } from '@nestjs/common';
-import { loggerProvider } from './logger.provider';
-
 @Module({
-  providers: [loggerProvider],
+  providers: [
+    {
+      provide: 'CONFIG',
+      useValue: {
+        apiKey: process.env.API_KEY,
+        timeout: 5000
+      }
+    }
+  ]
 })
 export class AppModule {}
+```
 
-// Inject vào service
-import { Inject, Injectable } from '@nestjs/common';
-import { LOGGER } from './logger.provider';
-
-@Injectable()
-export class ProductsService {
-  constructor(@Inject(LOGGER) private logger: Console) {}
-}
+### Factory Provider
+```typescript
+@Module({
+  providers: [
+    {
+      provide: 'DATABASE_CONNECTION',
+      useFactory: async () => {
+        return await createConnection({
+          type: 'postgres',
+          host: 'localhost',
+          port: 5432,
+          username: 'user',
+          password: 'password',
+          database: 'db'
+        });
+      }
+    }
+  ]
+})
+export class DatabaseModule {}
 ```
 
 ---
 
-## 🌟 Bổ sung: Middleware, Interceptor, Exception Filter, Swagger, Testing
-
-### Middleware
-- Xử lý request trước khi vào controller (logging, auth, ...)
-- Đăng ký trong module hoặc toàn cục.
-```typescript
-// logger.middleware.ts
-import { Injectable, NestMiddleware } from '@nestjs/common';
-@Injectable()
-export class LoggerMiddleware implements NestMiddleware {
-  use(req: any, res: any, next: () => void) {
-    console.log('Request...', req.method, req.url);
-    next();
-  }
-}
-// app.module.ts
-import { MiddlewareConsumer, Module } from '@nestjs/common';
-import { LoggerMiddleware } from './logger.middleware';
-@Module({})
-export class AppModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*');
-  }
-}
-```
-
-### Interceptor
-- Can thiệp vào request/response (transform, logging, cache...)
-```typescript
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-@Injectable()
-export class TransformInterceptor implements NestInterceptor {
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    return next.handle().pipe(map(data => ({ data, success: true })));
-  }
-}
-// main.ts
-app.useGlobalInterceptors(new TransformInterceptor());
-```
-
-### Exception Filter
-- Xử lý lỗi tập trung, custom response khi có exception.
-```typescript
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
-@Catch(HttpException)
-export class HttpErrorFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
-    const status = exception.getStatus();
-    response.status(status).json({
-      statusCode: status,
-      message: exception.message,
-    });
-  }
-}
-// main.ts
-app.useGlobalFilters(new HttpErrorFilter());
-```
-
-### Swagger
-- Tự động tạo tài liệu API.
-```typescript
-// main.ts
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-const config = new DocumentBuilder().setTitle('API').setVersion('1.0').build();
-const document = SwaggerModule.createDocument(app, config);
-SwaggerModule.setup('api', app, document);
-```
-
-### Testing
-- NestJS hỗ trợ unit test (Jest) cho service/controller.
-```typescript
-import { Test, TestingModule } from '@nestjs/testing';
-import { ProductsService } from './products.service';
-describe('ProductsService', () => {
-  let service: ProductsService;
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [ProductsService],
-    }).compile();
-    service = module.get<ProductsService>(ProductsService);
-  });
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-});
-```
-
----
-
-## 📝 Bài tập thực hành
-- Khởi tạo project NestJS, tạo module/controller/service cho Product
-- Cài class-validator, tạo DTO validate khi tạo Product
-- Tích hợp Swagger, thử viết unit test cho service
+## ✅ Checklist review kiến trúc NestJS
+- [ ] Module được tổ chức theo domain
+- [ ] Service chứa business logic
+- [ ] Controller chỉ xử lý HTTP
+- [ ] Dependencies được inject đúng cách
+- [ ] Error handling rõ ràng
+- [ ] Có unit test và E2E test
+- [ ] Code tuân thủ SOLID principles
+- [ ] Có documentation cho API
 
 ---
 
 ## 🔗 Tham khảo / References
 - [NestJS Official Docs](https://docs.nestjs.com/)
-- [NestJS CLI](https://docs.nestjs.com/cli/overview)
-- [NestJS Providers](https://docs.nestjs.com/providers)
-- [NestJS Dependency Injection](https://docs.nestjs.com/fundamentals/custom-providers)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [Domain-Driven Design](https://martinfowler.com/bliki/DomainDrivenDesign.html)

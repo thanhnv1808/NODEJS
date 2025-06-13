@@ -1,213 +1,319 @@
-# 📚 Buổi 15: Advanced: Upload, Pagination, Filter (NestJS)
+# 📚 Buổi 15: File Handling, Database Operations & Performance (NestJS)
 
 ## ❓ Câu hỏi mở đầu
-- Làm sao để upload file (ảnh, tài liệu) qua API một cách an toàn?
-- Làm thế nào để phân trang dữ liệu lớn, filter theo nhiều trường?
-- Có thể kết hợp upload, filter, pagination trong 1 API không?
+- Làm sao để xử lý upload file an toàn và hiệu quả?
+- Tối ưu query database như thế nào?
+- Xử lý dữ liệu lớn với streaming ra sao?
 
 Have you ever wondered:
-- How to upload files (images, docs) securely via API?
-- How to paginate and filter large datasets in your API?
-- Can you combine upload, filter, and pagination in a single API?
+- How to handle file uploads safely and efficiently?
+- How to optimize database queries?
+- How to process large datasets with streaming?
 
 ---
 
-## 1. 📦 Upload file với Multer trong NestJS
+## 1. 📁 File Handling
 
-- **Multer**: Middleware hỗ trợ upload file cho Express/NestJS
-- NestJS tích hợp sẵn @nestjs/platform-express
-
-### Cài đặt Multer
-```bash
-npm install --save @nestjs/platform-express multer
+### 1.1. File Upload Configuration
+```typescript
+// file-upload.constants.ts
+export const FILE_UPLOAD_DESTINATION = 'uploads';
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+export const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 ```
 
-### Ví dụ upload 1 file
+### 1.2. File Upload Interceptor
 ```typescript
-import { Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+// add-file-upload-to-request-body.interceptor.ts
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { getUploadedFilesFromRequestAsMap } from './file-upload';
 
-@Controller('upload')
-export class UploadController {
-  @Post('single')
-  @UseInterceptors(FileInterceptor('file'))
-  uploadSingle(@UploadedFile() file: Express.Multer.File) {
-    return { filename: file.filename, size: file.size };
+@Injectable()
+export class AddFileUploadToRequestBodyInterceptor implements NestInterceptor {
+  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
+    const request = context.switchToHttp().getRequest();
+    const uploadedFiles = await getUploadedFilesFromRequestAsMap(request);
+    
+    return next.handle().pipe(
+      map((data) => ({
+        ...data,
+        files: uploadedFiles,
+      })),
+    );
   }
 }
 ```
 
-### Upload nhiều file
+### 1.3. File Upload Service
 ```typescript
-import { FilesInterceptor } from '@nestjs/platform-express';
+// file-upload.ts
+import { copyFile, mkdir, unlink } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
-@Post('multi')
-@UseInterceptors(FilesInterceptor('files', 5))
-uploadMulti(@UploadedFiles() files: Express.Multer.File[]) {
-  return files.map(f => ({ filename: f.filename, size: f.size }));
+export const moveUploadedFile = async (
+  file: StoredFile,
+  generateFilePathFn: (file: StoredFile) => string,
+) => {
+  const newPath = generateFilePathFn(file);
+  const parentPath = dirname(newPath);
+  await mkdir(parentPath, { recursive: true });
+
+  await copyFile(file.path, newPath);
+  await unlink(file.path);
+
+  return { ...file, path: newPath };
+};
+
+export const removeUploadedFiles = async (files: StoredFile[]) => {
+  return Promise.all(
+    files.map((file) => unlink(file.path)),
+  );
+};
+```
+
+### 1.4. File Upload Controller
+```typescript
+// tasks.controller.ts
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { AddFileUploadToRequestBodyInterceptor } from '../common/file-upload';
+
+@Controller('tasks')
+export class TasksController {
+  @Post(':id/upload')
+  @UseInterceptors(
+    FileInterceptor('file'),
+    AddFileUploadToRequestBodyInterceptor,
+  )
+  async uploadFile(
+    @Param('id') id: number,
+    @Body() body: any,
+  ) {
+    const file = body.files.file;
+    const task = await this.tasksService.findOne(id);
+    
+    const filePath = `uploads/tasks/${task.id}/${file.filename}`;
+    await moveUploadedFile(file, () => filePath);
+    
+    return this.tasksService.updateTaskFile(id, filePath);
+  }
 }
 ```
 
 ---
 
-## 2. 📊 Pagination & Filter trong API
+## 2. 💾 Database Operations
 
-- **Pagination**: Chia nhỏ dữ liệu trả về theo trang (page, limit)
-- **Filter**: Lọc dữ liệu theo trường (name, price, ...)
-
-### Ví dụ phân trang & filter với TypeORM
+### 2.1. Pagination
 ```typescript
-@Get()
-async findAll(@Query('page') page = 1, @Query('limit') limit = 10, @Query('name') name?: string) {
-  const [data, total] = await this.productRepo.findAndCount({
-    where: name ? { name: Like(`%${name}%`) } : {},
-    skip: (page - 1) * limit,
-    take: limit,
-  });
-  return { data, total, page, limit };
-}
-```
+// paginate.ts
+export async function paginate<Entity extends ObjectLiteral>(
+  repositoryOrQueryBuilder: Repository<Entity> | SelectQueryBuilder<Entity>,
+  paginationInputDto: PaginationInputDto,
+  findManyOptions?: FindManyOptions<Entity>,
+): Promise<PaginationDto<Entity>> {
+  const { page, skip, take } = paginationInputDto;
+  let items = [];
+  let total = 0;
 
----
+  if (repositoryOrQueryBuilder instanceof Repository) {
+    [items, total] = await repositoryOrQueryBuilder.findAndCount({
+      skip,
+      take,
+      ...findManyOptions,
+    });
+  } else {
+    [items, total] = await repositoryOrQueryBuilder
+      .skip(skip)
+      .take(take)
+      .getManyAndCount();
+  }
 
-## 💡 Tips thực tế khi làm upload, pagination, filter
-- Giới hạn loại file, dung lượng khi upload (fileFilter, limits)
-- Lưu file vào thư mục riêng, đặt tên unique (uuid, timestamp)
-- Validate dữ liệu filter, phân trang (page > 0, limit hợp lý)
-- Trả về tổng số trang, tổng bản ghi cho client
-- Kết hợp filter nâng cao: nhiều trường, range (price_min, price_max)
-- Test upload với file lớn, nhiều file cùng lúc
-- Xử lý lỗi rõ ràng khi upload thất bại
-
----
-
-## 💡 Best practice khi lưu file upload
-- Lưu file vào thư mục riêng theo module/ngày (uploads/products/2024-06-01)
-- Đặt tên file unique (uuid, timestamp, userId...)
-- Không lưu file lớn trong repo, chỉ lưu path trong DB
-- Validate mime type, kích thước trước khi lưu
-- Xóa file cũ khi update hoặc xóa record
-- Backup thư mục upload định kỳ
-- Phân quyền truy cập file nếu cần (private/public)
-- Không trả về path tuyệt đối, chỉ trả relative path/url
-
----
-
-## ✅ Checklist review API upload/pagination/filter
-- [ ] Validate loại file, kích thước khi upload
-- [ ] Giới hạn số file upload/lần, dung lượng tối đa
-- [ ] Trả về path/url file rõ ràng, không lộ thông tin nhạy cảm
-- [ ] API phân trang trả về meta: total, page, limit, totalPages
-- [ ] Hỗ trợ filter đủ trường cần thiết (name, price, ...)
-- [ ] Có thể sort, filter range, filter nhiều trường cùng lúc
-- [ ] Docs rõ ràng cho param upload, filter, pagination
-- [ ] Test upload file lớn, filter nhiều trường, phân trang sâu
-
----
-
-## 🌟 Ví dụ nâng cao: Filter động với query builder
-```typescript
-@Get()
-async findAll(@Query() query: any) {
-  const qb = this.productRepo.createQueryBuilder('product');
-  if (query.name) qb.andWhere('product.name LIKE :name', { name: `%${query.name}%` });
-  if (query.price_min) qb.andWhere('product.price >= :min', { min: query.price_min });
-  if (query.price_max) qb.andWhere('product.price <= :max', { max: query.price_max });
-  if (query.category) qb.andWhere('product.categoryId = :cat', { cat: query.category });
-  // Filter in
-  if (query.status) qb.andWhere('product.status IN (:...status)', { status: query.status.split(',') });
-  // Sort
-  if (query.sort) qb.orderBy(`product.${query.sort}`, query.order === 'desc' ? 'DESC' : 'ASC');
-  // Pagination
-  const page = +query.page || 1;
-  const limit = +query.limit || 10;
-  qb.skip((page-1)*limit).take(limit);
-  const [data, total] = await qb.getManyAndCount();
   return {
-    data,
-    meta: { total, page, limit, totalPages: Math.ceil(total/limit) }
+    items,
+    pagination: {
+      total,
+      page,
+      pageSize: take,
+    },
   };
 }
 ```
 
+### 2.2. Streaming Large Datasets
+```typescript
+// paginate.ts
+export const paginateStream = async <Entity extends ObjectLiteral>(
+  queryBuilder: SelectQueryBuilder<Entity>,
+  batchFn: (items: Entity[], totalCount: number) => Promise<any>,
+  size = 100,
+): Promise<any> => {
+  const stream = await queryBuilder.stream();
+  return pipeline(stream, async function* (source: any) {
+    let totalCount = 0;
+    let items: Entity[] = [];
+
+    for await (const row of source) {
+      totalCount += 1;
+      items.push(row);
+
+      if (items.length >= size) {
+        yield await batchFn(items, totalCount);
+        items = [];
+      }
+    }
+
+    if (items.length > 0) {
+      yield await batchFn(items, totalCount);
+    }
+  });
+};
+```
+
+### 2.3. Query Builder
+```typescript
+// pg-query.ts
+export class PgQueryBuilder {
+  static buildWhereClause(
+    queryBuilder: SelectQueryBuilder<any>,
+    filters: Record<string, any>,
+  ) {
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryBuilder.andWhere(`${key} = :${key}`, { [key]: value });
+      }
+    });
+  }
+
+  static buildOrderByClause(
+    queryBuilder: SelectQueryBuilder<any>,
+    sortBy: string,
+    sortOrder: 'ASC' | 'DESC' = 'ASC',
+  ) {
+    queryBuilder.orderBy(sortBy, sortOrder);
+  }
+}
+```
+
 ---
 
-## 🌟 Bổ sung thực tế & nâng cao
+## 3. ⚡ Performance Optimization
 
-### 1. Swagger cho upload file
-- Dùng @ApiConsumes('multipart/form-data'), @ApiBody để mô tả upload file trong Swagger.
+### 3.1. Query Optimization
 ```typescript
-@ApiConsumes('multipart/form-data')
-@ApiBody({ type: FileUploadDto })
-@Post('upload')
-upload(@UploadedFile() file: Express.Multer.File) { ... }
-```
+// tasks.service.ts
+@Injectable()
+export class TasksService {
+  async findAllWithRelations(filters: TaskFiltersDto) {
+    const queryBuilder = this.taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.assignee', 'assignee')
+      .leftJoinAndSelect('task.creator', 'creator');
 
-### 2. Validate file upload nâng cao
-- Custom fileFilter để kiểm tra mime type, size:
-```typescript
-const fileFilter = (req, file, cb) => {
-  if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files allowed!'), false);
-  cb(null, true);
-};
-@UseInterceptors(FileInterceptor('file', { fileFilter, limits: { fileSize: 2 * 1024 * 1024 } }))
-```
+    PgQueryBuilder.buildWhereClause(queryBuilder, filters);
+    PgQueryBuilder.buildOrderByClause(queryBuilder, 'task.createdAt', 'DESC');
 
-### 3. Xử lý lỗi upload (custom Exception)
-- Tạo custom exception cho lỗi upload (file quá lớn, sai loại):
-```typescript
-if (!file) throw new BadRequestException('Invalid file');
-```
-
-### 4. Trả về URL truy cập file
-- Sau khi upload, trả về URL public hoặc relative path:
-```typescript
-return { url: `/uploads/${file.filename}` };
-```
-
-### 5. Pagination nâng cao
-- Trả về meta: totalPages, hasNext, hasPrev:
-```typescript
-return {
-  data,
-  meta: {
-    total, page, limit,
-    totalPages: Math.ceil(total/limit),
-    hasNext: page * limit < total,
-    hasPrev: page > 1
+    return queryBuilder.getMany();
   }
-};
+}
 ```
 
-### 6. Security khi upload file
-- Kiểm tra XSS, path traversal khi lưu file.
-- Không cho phép upload file .exe, .sh, ...
-- Đặt tên file unique, không dùng tên gốc từ client.
-
-### 7. Test upload với Postman
-- Sử dụng tab "Body" > "form-data" để gửi file.
-- Test upload nhiều file, file lớn, file sai loại.
-
-### 8. Unit test cho upload/pagination/filter
-- Có thể dùng TestingModule để test controller/service:
+### 3.2. Batch Processing
 ```typescript
-describe('UploadController', () => {
-  it('should upload file and return url', () => { /* ... */ });
-});
+// tasks.service.ts
+@Injectable()
+export class TasksService {
+  async processLargeDataset() {
+    const queryBuilder = this.taskRepository
+      .createQueryBuilder('task')
+      .where('task.status = :status', { status: 'PENDING' });
+
+    await paginateStream(queryBuilder, async (tasks, total) => {
+      await Promise.all(
+        tasks.map(task => this.processTask(task)),
+      );
+    }, 100);
+  }
+}
 ```
+
+### 3.3. Caching
+```typescript
+// tasks.service.ts
+@Injectable()
+export class TasksService {
+  @Cacheable('task', { ttl: 300 })
+  async findOne(id: number) {
+    return this.taskRepository.findOne(id);
+  }
+
+  @CacheEvict('task')
+  async update(id: number, dto: UpdateTaskDto) {
+    return this.taskRepository.update(id, dto);
+  }
+}
+```
+
+---
+
+## 💡 Best Practices
+
+### 1. File Handling
+- Validate file size and type
+- Use secure file names
+- Implement proper cleanup
+- Handle concurrent uploads
+- Use streaming for large files
+
+### 2. Database Operations
+- Use pagination for large datasets
+- Implement proper indexing
+- Use query builder for complex queries
+- Implement proper error handling
+- Use transactions when needed
+
+### 3. Performance
+- Implement caching strategy
+- Use batch processing
+- Optimize database queries
+- Monitor performance metrics
+- Use proper indexing
+
+---
+
+## ✅ Checklist review
+- [ ] File upload validation
+- [ ] Secure file storage
+- [ ] Proper file cleanup
+- [ ] Database pagination
+- [ ] Query optimization
+- [ ] Caching implementation
+- [ ] Performance monitoring
+- [ ] Error handling
 
 ---
 
 ## 📝 Bài tập thực hành
-- Tích hợp upload file (ảnh) cho Product, validate loại file, dung lượng
-- Thêm API phân trang, filter cho danh sách Product
-- Viết API upload nhiều file, filter nâng cao (name, price range)
-- Test upload file lớn, nhiều file, filter nhiều trường
+1. Implement File Upload:
+   - File validation
+   - Secure storage
+   - Cleanup mechanism
+
+2. Database Operations:
+   - Pagination
+   - Complex queries
+   - Batch processing
+
+3. Performance Optimization:
+   - Query optimization
+   - Caching
+   - Monitoring
 
 ---
 
 ## 🔗 Tham khảo / References
 - [NestJS File Upload](https://docs.nestjs.com/techniques/file-upload)
-- [Multer Docs](https://github.com/expressjs/multer)
-- [TypeORM Pagination](https://typeorm.io/select-query-builder#pagination-using-take-and-skip)
-- [F8: Upload & Pagination (Video tiếng Việt)](https://www.youtube.com/watch?v=1kF3jX6K8p8) 
+- [TypeORM Documentation](https://typeorm.io/)
+- [Node.js Streams](https://nodejs.org/api/stream.html)
+- [Redis Caching](https://redis.io/topics/caching) 

@@ -1,259 +1,386 @@
-# 📚 Buổi 13: Authentication: JWT + Guard (NestJS)
+# 📚 Buổi 13: Authentication với JWT và Guards (NestJS)
 
 ## ❓ Câu hỏi mở đầu
-- Làm sao để bảo vệ API, chỉ cho user đã đăng nhập truy cập?
-- JWT là gì, tại sao phổ biến cho backend hiện đại?
-- Guard trong NestJS giúp bảo vệ route như thế nào?
+- Làm sao để bảo vệ API khỏi truy cập trái phép?
+- JWT là gì, tại sao nên dùng thay vì session?
+- Guards trong NestJS giúp ích gì cho việc bảo mật?
 
 Have you ever wondered:
-- How to protect your API so only logged-in users can access?
-- What is JWT and why is it so popular for backend authentication?
-- How do guards in NestJS help secure your routes?
+- How to protect APIs from unauthorized access?
+- What is JWT and why use it instead of sessions?
+- How do Guards help with security in NestJS?
 
 ---
 
-## 1. 🔐 Authentication & JWT là gì?
+## 1. 🔐 Authentication là gì?
 
-- **Authentication**: Xác thực user (ai đang truy cập hệ thống?)
-- **JWT (JSON Web Token)**: Chuẩn token hóa, mã hóa thông tin user, truyền qua header
-- **Flow cơ bản**:
-  1. User đăng nhập (POST /login)
-  2. Server kiểm tra, trả về JWT
-  3. Client gửi JWT ở header cho các request tiếp theo
-  4. Server verify JWT, cho phép hoặc từ chối truy cập
+### 1.1. Khái niệm cơ bản
+- **Authentication**: Xác thực danh tính người dùng
+- **Authorization**: Phân quyền truy cập tài nguyên
+- **JWT (JSON Web Token)**: Token chứa thông tin người dùng được mã hóa
 
-### Ví dụ JWT payload
-```json
-{
-  "sub": 1,
-  "username": "alice",
-  "role": "user",
-  "iat": 1710000000,
-  "exp": 1710003600
-}
+### 1.2. Flow Authentication cơ bản
+```mermaid
+sequenceDiagram
+    Client->>Server: Login Request
+    Server->>Server: Validate Credentials
+    Server->>Server: Generate JWT
+    Server->>Client: Return JWT
+    Client->>Server: Request with JWT
+    Server->>Server: Verify JWT
+    Server->>Client: Protected Resource
 ```
 
 ---
 
-## 2. 🛡️ Guard trong NestJS
+## 2. 🎫 JWT trong NestJS
 
-- **Guard**: Lớp bảo vệ, kiểm tra điều kiện trước khi cho vào controller (thường dùng cho auth, role)
-- **CanActivate**: Interface chính, trả về true/false
+### 2.1. Cài đặt dependencies
+```bash
+pnpm add @nestjs/jwt @nestjs/passport passport passport-jwt
+pnpm add -D @types/passport-jwt
+```
 
-### Ví dụ AuthGuard kiểm tra JWT
+### 2.2. Cấu hình JWT Module
 ```typescript
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+// auth.module.ts
+import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 
-@Injectable()
-export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
-  canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-    const auth = req.headers['authorization'];
-    if (!auth) throw new UnauthorizedException('No token');
-    const token = auth.replace('Bearer ', '');
-    try {
-      req.user = this.jwtService.verify(token);
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
-  }
-}
+@Module({
+  imports: [
+    PassportModule,
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '1d' },
+    }),
+    UsersModule,
+  ],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService],
+})
+export class AuthModule {}
 ```
 
----
-
-## 3. ⚡ Ví dụ thực tế: Đăng ký, Đăng nhập, Bảo vệ route
-
-### Đăng ký & Đăng nhập (tạo JWT)
+### 2.3. Auth Service
 ```typescript
 // auth.service.ts
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {}
+
+  async validateUser(email: string, password: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (user && await bcrypt.compare(password, user.password)) {
+      const { password, ...result } = user;
+      return result;
+    }
+    return null;
+  }
 
   async login(user: any) {
-    const payload = { sub: user.id, username: user.username, role: user.role };
+    const payload = { email: user.email, sub: user.id, role: user.role };
     return {
-      access_token: this.jwtService.sign(payload, { expiresIn: '1h' })
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 }
 ```
 
-### Bảo vệ route với guard
+### 2.4. JWT Strategy
 ```typescript
-// products.controller.ts
-import { UseGuards } from '@nestjs/common';
-import { AuthGuard } from './auth.guard';
+// jwt.strategy.ts
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PassportStrategy } from '@nestjs/passport';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 
-@UseGuards(AuthGuard)
-@Get('private')
-getPrivateData() {
-  return { message: 'This is protected data' };
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(private usersService: UsersService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: process.env.JWT_SECRET,
+    });
+  }
+
+  async validate(payload: any) {
+    const user = await this.usersService.findOne(payload.sub);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return { userId: payload.sub, email: payload.email, role: payload.role };
+  }
 }
 ```
 
 ---
 
-## 💡 Tips thực tế khi dùng JWT + Guard
-- Luôn lưu secret key ở biến môi trường (.env)
-- Đặt expiresIn cho JWT, không để token sống mãi
-- Không lưu thông tin nhạy cảm trong payload JWT
-- Dùng HttpOnly cookie hoặc localStorage cho client (tùy use-case)
-- Xử lý lỗi rõ ràng khi verify JWT
-- Có thể custom guard cho role-based access (admin, user...)
-- Test kỹ các case: thiếu token, token hết hạn, token sai
+## 3. 🛡️ Guards trong NestJS
 
----
-
-## 💡 Best Practice khi bảo mật JWT
-- Luôn lưu secret key ở biến môi trường, không hardcode
-- Định kỳ rotate (thay đổi) secret key nếu có thể
-- Đặt expiresIn ngắn cho access token (5-15 phút), dùng refresh token cho login lâu dài
-- Không lưu thông tin nhạy cảm (password, hash, ... ) trong payload JWT
-- Kiểm tra blacklist/revoked token khi verify (để hỗ trợ logout, revoke)
-- Chỉ truyền JWT qua HTTPS, không truyền qua HTTP
-- Xử lý lỗi rõ ràng, không tiết lộ lý do chi tiết cho attacker
-- Log các sự kiện bất thường (login fail, token invalid...)
-- Test kỹ các case: token hết hạn, bị sửa, bị revoke, thiếu token
-
----
-
-## 🌟 Ví dụ nâng cao: Refresh Token & Role-based Guard
-
-### Refresh Token (giữ user đăng nhập lâu dài)
-- Khi access token hết hạn, client gửi refresh token để lấy token mới
-- Lưu refresh token ở DB, kiểm tra khi cấp lại access token
-
-### Role-based Guard
+### 3.1. Auth Guard
 ```typescript
-import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
+// auth.guard.ts
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+  constructor(private reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext) {
+    const isPublic = this.reflector.get<boolean>(
+      'isPublic',
+      context.getHandler(),
+    );
+    if (isPublic) return true;
+
+    const request = context.switchToHttp().getRequest();
+    return request.user;
+  }
+}
+```
+
+### 3.2. Roles Guard
+```typescript
+// roles.guard.ts
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private allowedRoles: string[]) {}
+  constructor(private reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-    const user = req.user;
-    if (!user || !this.allowedRoles.includes(user.role)) {
-      throw new ForbiddenException('No permission');
-    }
-    return true;
+    const requiredRoles = this.reflector.get<string[]>(
+      'roles',
+      context.getHandler(),
+    );
+    if (!requiredRoles) return true;
+
+    const { user } = context.switchToHttp().getRequest();
+    return requiredRoles.some((role) => user.role === role);
   }
 }
-// Sử dụng: @UseGuards(new RolesGuard(['admin']))
+```
+
+### 3.3. Sử dụng Guards
+```typescript
+// tasks.controller.ts
+@Controller('tasks')
+@UseGuards(AuthGuard, RolesGuard)
+export class TasksController {
+  @Get()
+  @Roles('admin', 'user')
+  findAll(@Query() query: GetAllTasksDto) {
+    return this.tasksService.findAll(query);
+  }
+
+  @Post()
+  @Roles('admin')
+  create(@Body() dto: CreateTaskDto) {
+    return this.tasksService.create(dto);
+  }
+}
 ```
 
 ---
 
-## 🌟 Ví dụ nâng cao: Revoke Token (Logout an toàn)
+## 4. 🔄 Refresh Token Flow
 
-### Cách làm phổ biến:
-- Khi user logout hoặc bị khóa, lưu token/refresh token vào bảng blacklist trong DB
-- Khi verify JWT, kiểm tra token có nằm trong blacklist không
-
+### 4.1. Cấu trúc Refresh Token
 ```typescript
 // auth.service.ts
-async logout(token: string) {
-  await this.tokenRepo.save({ token, revoked: true });
-}
+@Injectable()
+export class AuthService {
+  async generateTokens(user: any) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(
+        { sub: user.id, email: user.email, role: user.role },
+        { expiresIn: '15m' }
+      ),
+      this.jwtService.signAsync(
+        { sub: user.id },
+        { expiresIn: '7d' }
+      ),
+    ]);
 
-// auth.guard.ts
-const isRevoked = await this.tokenRepo.findOne({ where: { token, revoked: true } });
-if (isRevoked) throw new UnauthorizedException('Token revoked');
+    await this.tokenService.saveRefreshToken(user.id, refreshToken);
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    };
+  }
+
+  async refreshTokens(refreshToken: string) {
+    try {
+      const { sub } = await this.jwtService.verifyAsync(refreshToken);
+      const isValid = await this.tokenService.validateRefreshToken(sub, refreshToken);
+      
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      const user = await this.usersService.findOne(sub);
+      return this.generateTokens(user);
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+}
+```
+
+### 4.2. Token Service
+```typescript
+// token.service.ts
+@Injectable()
+export class TokenService {
+  constructor(
+    @InjectRepository(RefreshToken)
+    private tokenRepository: Repository<RefreshToken>,
+  ) {}
+
+  async saveRefreshToken(userId: number, token: string) {
+    const refreshToken = this.tokenRepository.create({
+      userId,
+      token,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+    return this.tokenRepository.save(refreshToken);
+  }
+
+  async validateRefreshToken(userId: number, token: string) {
+    const refreshToken = await this.tokenRepository.findOne({
+      where: { userId, token, revoked: false },
+    });
+    return !!refreshToken;
+  }
+}
 ```
 
 ---
 
-## 🌟 Bổ sung thực tế & nâng cao
+## 5. 🔒 Security Best Practices
 
-### 1. Cấu hình Passport + JWT module
-- NestJS hỗ trợ sẵn @nestjs/passport, @nestjs/jwt để triển khai JWT nhanh chóng.
+### 5.1. Token Security
+- Sử dụng strong secret key
+- Đặt thời gian hết hạn ngắn cho access token
+- Lưu refresh token an toàn (HttpOnly cookie)
+- Implement token blacklist/revocation
+
+### 5.2. Password Security
 ```typescript
-import { JwtModule } from '@nestjs/jwt';
+// auth.service.ts
+@Injectable()
+export class AuthService {
+  async hashPassword(password: string): Promise<string> {
+    const saltRounds = 10;
+    return bcrypt.hash(password, saltRounds);
+  }
+
+  async validatePassword(plainText: string, hashed: string): Promise<boolean> {
+    return bcrypt.compare(plainText, hashed);
+  }
+}
+```
+
+### 5.3. Rate Limiting
+```typescript
+// main.ts
+import { ThrottlerModule } from '@nestjs/throttler';
+
 @Module({
   imports: [
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '1h' },
-    }),
+    ThrottlerModule.forRoot([{
+      ttl: 60,
+      limit: 5,
+    }]),
   ],
 })
-export class AuthModule {}
-```
-
-### 2. Custom decorator lấy user từ request
-- Tạo decorator để lấy user đã verify từ guard:
-```typescript
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-export const User = createParamDecorator((data, ctx: ExecutionContext) => {
-  const req = ctx.switchToHttp().getRequest();
-  return req.user;
-});
-// Sử dụng: @Get() getMe(@User() user) { ... }
-```
-
-### 3. Lưu token ở đâu trên client (cookie vs localStorage)
-- **HttpOnly Cookie**: Bảo vệ khỏi XSS, nhưng cần CSRF protection.
-- **localStorage**: Dễ dùng, nhưng dễ bị XSS tấn công.
-- Tùy use-case, cân nhắc bảo mật khi lưu token trên client.
-
-### 4. Refresh token best practice
-- Lưu refresh token ở HttpOnly cookie hoặc DB.
-- Khi cấp lại access token, nên rotate refresh token (tạo mới, vô hiệu hóa cái cũ).
-- Có thể lưu refresh token hash trong DB để tăng bảo mật.
-
-### 5. Cơ chế revoke token nâng cao
-- Dùng Redis hoặc DB với TTL để lưu blacklist token.
-- Có thể dùng JWT với short TTL, refresh liên tục, giảm nhu cầu revoke.
-
-### 6. Tích hợp Swagger cho Auth
-- Dùng @ApiBearerAuth() để tài liệu hóa route cần JWT:
-```typescript
-import { ApiBearerAuth } from '@nestjs/swagger';
-@ApiBearerAuth()
-@UseGuards(AuthGuard)
-@Get('private')
-getPrivateData() { ... }
-```
-
-### 7. Unit test cho guard/auth service
-- Có thể dùng TestingModule để test guard, service:
-```typescript
-describe('AuthGuard', () => {
-  it('should throw if no token', () => { /* ... */ });
-  it('should pass if token valid', () => { /* ... */ });
-});
+export class AppModule {}
 ```
 
 ---
 
-## ✅ Checklist review bảo mật Auth/JWT
-- [ ] Secret key lưu ở .env, không hardcode
-- [ ] Token có expiresIn hợp lý, không để sống mãi
-- [ ] Không lưu thông tin nhạy cảm trong payload
-- [ ] Chỉ truyền JWT qua HTTPS
-- [ ] Có cơ chế revoke/blacklist token khi logout hoặc bị khóa
-- [ ] Test các case: hết hạn, sai, bị sửa, bị revoke
-- [ ] Log sự kiện bất thường, cảnh báo brute-force
-- [ ] Có tài liệu hướng dẫn sử dụng, rotate, revoke token
+## 💡 Best Practices khi implement Authentication
+
+### 1. Token Management
+- Sử dụng short-lived access tokens
+- Implement refresh token rotation
+- Có cơ chế revoke token
+- Log token usage
+
+### 2. Error Handling
+- Custom exception cho auth errors
+- Không expose sensitive info trong error
+- Log security events
+- Rate limit failed attempts
+
+### 3. Security Headers
+```typescript
+// main.ts
+app.use(helmet());
+app.enableCors({
+  origin: process.env.ALLOWED_ORIGINS.split(','),
+  credentials: true,
+});
+```
+
+### 4. Testing
+- Unit test cho auth logic
+- E2E test cho auth flow
+- Test security scenarios
+- Mock external services
+
+---
+
+## ✅ Checklist review Authentication
+- [ ] JWT được cấu hình đúng (secret, expiration)
+- [ ] Refresh token flow hoạt động
+- [ ] Guards bảo vệ routes đúng cách
+- [ ] Password được hash an toàn
+- [ ] Có rate limiting cho auth endpoints
+- [ ] Error handling rõ ràng
+- [ ] Security headers được set
+- [ ] Có logging cho security events
 
 ---
 
 ## 📝 Bài tập thực hành
-- Cài đặt JWT cho project NestJS, tạo API đăng ký/đăng nhập trả về token
-- Viết AuthGuard bảo vệ route, test các case thiếu/sai token
-- Viết RolesGuard cho route chỉ cho admin truy cập
-- Thử implement refresh token (nâng cao)
+1. Implement JWT Authentication:
+   - Login endpoint
+   - Protected routes
+   - Refresh token flow
+
+2. Role-based Authorization:
+   - User roles (admin, user)
+   - Role guards
+   - Protected resources
+
+3. Security Features:
+   - Rate limiting
+   - Password hashing
+   - Token blacklist
+   - Security headers
 
 ---
 
 ## 🔗 Tham khảo / References
-- [NestJS Auth & JWT](https://docs.nestjs.com/security/authentication)
+- [NestJS Authentication](https://docs.nestjs.com/security/authentication)
+- [JWT Best Practices](https://auth0.com/blog/jwt-security-best-practices/)
+- [Passport.js Documentation](http://www.passportjs.org/)
 - [NestJS Guards](https://docs.nestjs.com/guards)
-- [JWT.io](https://jwt.io/)

@@ -14,36 +14,71 @@ Have you ever wondered:
 
 ## 1. 🧩 Module & DTO trong NestJS
 
-- **Module**: Gom nhóm các controller, service liên quan (giúp code rõ ràng, dễ mở rộng)
-- **DTO (Data Transfer Object)**: Class định nghĩa cấu trúc dữ liệu vào/ra, dùng để validate, type-safe
+### 1.1. Module là gì?
+- **Module**: Đơn vị tổ chức code, gom nhóm các controller, service liên quan
+- Mỗi module là một class có decorator `@Module()`
+- Module có thể import/export các module khác
 
-### Ví dụ DTO với class-validator
 ```typescript
-// create-product.dto.ts
-import { IsString, IsNumber, Min, MaxLength } from 'class-validator';
+// tasks.module.ts
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([Task]),
+    UsersModule,
+    FileStorageModule,
+  ],
+  controllers: [TasksController],
+  providers: [TasksService],
+  exports: [TasksService],
+})
+export class TasksModule {}
+```
 
-export class CreateProductDto {
+### 1.2. DTO (Data Transfer Object)
+- **DTO**: Class định nghĩa cấu trúc dữ liệu vào/ra
+- Giúp validate, type-safe, tài liệu hóa API
+- Thường kết hợp với class-validator để validate
+
+```typescript
+// create-task.dtos.ts
+import { IsString, IsNumber, IsOptional, IsEnum } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+
+export class CreateTaskDto {
+  @ApiProperty({ example: 'Implement login feature' })
   @IsString()
-  @MaxLength(100)
   name: string;
 
+  @ApiProperty({ example: 'Create login form with validation' })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({ example: 'IN_PROGRESS', enum: TaskStatus })
+  @IsEnum(TaskStatus)
+  status: TaskStatus;
+
+  @ApiProperty({ example: 1 })
   @IsNumber()
-  @Min(0)
-  price: number;
+  assigneeId: number;
 }
 ```
 
-### Sử dụng DTO trong controller
+### 1.3. Sử dụng DTO trong controller
 ```typescript
-import { Body, Controller, Post } from '@nestjs/common';
-import { CreateProductDto } from './create-product.dto';
-
-@Controller('products')
-export class ProductsController {
+// tasks.controller.ts
+@Controller('tasks')
+export class TasksController {
   @Post()
-  create(@Body() dto: CreateProductDto) {
-    // Nếu dữ liệu không hợp lệ, tự động trả lỗi 400
-    return { message: 'Product created', data: dto };
+  @UseGuards(AuthGuard)
+  create(@Body() dto: CreateTaskDto) {
+    return this.tasksService.create(dto);
+  }
+
+  @Get()
+  @UseGuards(AuthGuard)
+  findAll(@Query() query: GetAllTasksDto) {
+    return this.tasksService.findAll(query);
   }
 }
 ```
@@ -52,187 +87,176 @@ export class ProductsController {
 
 ## 2. 🛡️ Validation & Pipe trong NestJS
 
-- **Validation**: Kiểm tra dữ liệu đầu vào (body, param, query) tự động bằng class-validator
-- **Pipe**: Xử lý, transform, validate dữ liệu trước khi vào controller
+### 2.1. Validation Pipe
+- **ValidationPipe**: Tự động validate dữ liệu dựa trên class-validator
+- Có thể cấu hình global hoặc cho từng route
 
-### Kích hoạt global validation pipe
 ```typescript
 // main.ts
-import { ValidationPipe } from '@nestjs/common';
-app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+app.useGlobalPipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
+  }),
+);
 ```
 
-### Ví dụ custom pipe: ParseIntPipe
+### 2.2. Custom Validation Pipe
 ```typescript
-import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
-
+// parse-date.pipe.ts
 @Injectable()
-export class ParseIntPipe implements PipeTransform<string, number> {
+export class ParseDatePipe implements PipeTransform<string, Date> {
   transform(value: string) {
-    const val = parseInt(value, 10);
-    if (isNaN(val)) {
-      throw new BadRequestException('Validation failed (numeric string is expected)');
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date format');
     }
-    return val;
+    return date;
   }
 }
 
-// Sử dụng trong controller
-@Get(':id')
-findOne(@Param('id', ParseIntPipe) id: number) {
-  return this.productsService.findOne(id);
-}
-```
-
----
-
-## 🌟 Bổ sung kiến thức thực tế & nâng cao
-
-### 1. Custom message cho class-validator
-- Có thể truyền message tùy chỉnh cho từng rule:
-```typescript
-@IsString({ message: 'Tên phải là chuỗi' })
-name: string;
-```
-
-### 2. Validate nested object
-- Dùng @ValidateNested và @Type để validate object lồng nhau:
-```typescript
-import { Type } from 'class-transformer';
-import { ValidateNested, IsString } from 'class-validator';
-class CategoryDto {
-  @IsString()
-  name: string;
-}
-class ProductDto {
-  @ValidateNested()
-  @Type(() => CategoryDto)
-  category: CategoryDto;
-}
-```
-
-### 3. DTO kế thừa (extends)
-- Có thể kế thừa DTO để tái sử dụng rule:
-```typescript
-export class UpdateProductDto extends CreateProductDto {
-  // Có thể thêm rule riêng cho update
-}
-```
-
-### 4. Pipe cho mọi loại input
-- Pipe dùng được cho body, param, query, custom decorator:
-```typescript
-@Get(':id')
-findOne(@Param('id', ParseIntPipe) id: number) { ... }
-@Post()
-create(@Body(TrimStringPipe) name: string) { ... }
-```
-
-### 5. Thứ tự thực thi Pipe
-- Pipe thực thi theo thứ tự khai báo (trái sang phải):
-```typescript
-@Post()
-create(@Body('name', TrimStringPipe, CustomUppercasePipe) name: string) { ... }
-// name sẽ được trim trước, rồi uppercase
-```
-
-### 6. Tích hợp với Swagger
-- Dùng decorator để tài liệu hóa DTO:
-```typescript
-import { ApiProperty } from '@nestjs/swagger';
-export class CreateProductDto {
-  @ApiProperty({ example: 'Book', description: 'Tên sản phẩm' })
-  name: string;
-}
-```
-
-### 7. Exception khi validate
-- Nếu validate fail, NestJS trả về lỗi 400 (BadRequestException) với message chi tiết.
-
-### 8. Global Pipe nâng cao
-- Có thể cấu hình thêm transform, forbidUnknownValues, custom error:
-```typescript
-app.useGlobalPipes(new ValidationPipe({
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-  exceptionFactory: (errors) => new BadRequestException(errors),
-}));
-```
-
----
-
-## 💡 Tips thực tế khi dùng DTO, Validation, Pipe
-- Luôn dùng DTO cho mọi input (body, query, param)
-- Dùng class-validator để validate, kết hợp nhiều decorator
-- Kích hoạt global ValidationPipe để tự động validate toàn app
-- Custom pipe cho các logic đặc biệt (parse, transform, sanitize...)
-- Sử dụng whitelist để loại bỏ field thừa, forbidNonWhitelisted để báo lỗi nếu có field lạ
-- Viết message rõ ràng cho từng rule validate
-- Có thể combine nhiều pipe cho 1 param
-
----
-
-## 🌟 Ví dụ nâng cao về Pipe
-
-### Pipe chuyển đổi boolean
-```typescript
-import { PipeTransform, Injectable, BadRequestException } from '@nestjs/common';
-
-@Injectable()
-export class ParseBoolPipe implements PipeTransform<string, boolean> {
-  transform(value: string) {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    throw new BadRequestException('Validation failed (boolean string is expected)');
-  }
-}
 // Sử dụng trong controller
 @Get()
-findAll(@Query('active', ParseBoolPipe) active: boolean) {
-  // active là boolean
+findAll(@Query('startDate', ParseDatePipe) startDate: Date) {
+  return this.tasksService.findByDate(startDate);
 }
 ```
 
-### Pipe sanitize HTML (loại bỏ tag nguy hiểm)
+### 2.3. Validate Nested Objects
 ```typescript
-import { PipeTransform, Injectable } from '@nestjs/common';
-import sanitizeHtml from 'sanitize-html';
+// task-update.dto.ts
+import { Type } from 'class-transformer';
+import { ValidateNested, IsString, IsOptional } from 'class-validator';
 
-@Injectable()
-export class SanitizeHtmlPipe implements PipeTransform<string, string> {
-  transform(value: string) {
-    return sanitizeHtml(value, { allowedTags: [], allowedAttributes: {} });
-  }
-}
-// Sử dụng trong controller
-@Post()
-create(@Body('description', SanitizeHtmlPipe) desc: string) {
-  // desc đã được loại bỏ tag HTML
-}
-```
+class TaskAssigneeDto {
+  @IsString()
+  name: string;
 
-### Combine nhiều pipe cho 1 param
-```typescript
-@Post()
-create(
-  @Body('name', TrimStringPipe, CustomUppercasePipe) name: string
-) {
-  // name đã được trim và chuyển uppercase
+  @IsString()
+  @IsOptional()
+  email?: string;
+}
+
+export class UpdateTaskDto {
+  @ValidateNested()
+  @Type(() => TaskAssigneeDto)
+  assignee: TaskAssigneeDto;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 }
 ```
 
 ---
 
-## 💡 Best Practice khi validate với DTO & Pipe
+## 3. 🌟 Ví dụ nâng cao từ Task Management
+
+### 3.1. Query DTO với Pagination
+```typescript
+// get-all-tasks.dtos.ts
+export class GetAllTasksDto {
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  page?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsEnum(TaskStatus)
+  status?: TaskStatus;
+}
+```
+
+### 3.2. File Upload DTO
+```typescript
+// images-upload.dto.ts
+export class ImagesUploadDto {
+  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' } })
+  @IsArray()
+  @IsOptional()
+  images?: Express.Multer.File[];
+
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  taskId: number;
+}
+```
+
+### 3.3. Custom Validation Decorator
+```typescript
+// task-status.decorator.ts
+export function IsValidTaskStatus(validationOptions?: ValidationOptions) {
+  return function (object: Object, propertyName: string) {
+    registerDecorator({
+      name: 'isValidTaskStatus',
+      target: object.constructor,
+      propertyName: propertyName,
+      options: validationOptions,
+      validator: {
+        validate(value: any) {
+          return Object.values(TaskStatus).includes(value);
+        },
+      },
+    });
+  };
+}
+```
+
+---
+
+## 💡 Best Practices khi dùng DTO & Validation
+
+### 1. DTO Organization
 - Tách DTO cho từng use-case (Create, Update, Query...)
-- Đặt custom message cho từng rule (dễ debug, dễ hiểu)
-- Validate nested object với @ValidateNested, @Type
-- Sử dụng group để reuse DTO cho nhiều mục đích
-- Viết unit test cho DTO, custom pipe
-- Tài liệu hóa rule validate trong Swagger/Postman
-- Không validate logic nghiệp vụ phức tạp trong DTO (để ở service)
-- Không trả về lỗi lộ thông tin nhạy cảm
+- Đặt trong thư mục dto riêng
+- Kế thừa DTO để tái sử dụng rule
+
+```typescript
+// base-task.dto.ts
+export class BaseTaskDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+}
+
+// create-task.dto.ts
+export class CreateTaskDto extends BaseTaskDto {
+  @IsNumber()
+  assigneeId: number;
+}
+```
+
+### 2. Validation Rules
+- Validate sớm với class-validator
+- Custom message rõ ràng
+- Validate cả nested objects
+- Sử dụng groups khi cần
+
+### 3. Error Handling
+- Custom exception cho validation error
+- Log đầy đủ thông tin lỗi
+- Trả về message thân thiện với user
+
+### 4. Performance
+- Validate ở tầng controller
+- Tránh validate trùng lặp
+- Cache kết quả validate nếu cần
 
 ---
 
@@ -249,14 +273,25 @@ create(
 ---
 
 ## 📝 Bài tập thực hành
-- Tạo DTO validate cho Product (name, price, description...)
-- Kích hoạt global ValidationPipe, thử gửi dữ liệu sai để xem lỗi
-- Viết custom pipe (ví dụ: trim, parse boolean, sanitize...)
-- Viết unit test cho DTO và pipe
+1. Tạo DTO cho Task Management:
+   - CreateTaskDto với validation
+   - UpdateTaskDto với partial fields
+   - QueryTaskDto với pagination và filter
+
+2. Viết custom validation pipe:
+   - ParseDatePipe cho date fields
+   - SanitizeHtmlPipe cho description
+   - ParseEnumPipe cho status
+
+3. Tích hợp Swagger:
+   - Mô tả DTO với @ApiProperty
+   - Thêm example cho từng field
+   - Tài liệu hóa validation rules
 
 ---
 
 ## 🔗 Tham khảo / References
 - [NestJS Validation](https://docs.nestjs.com/techniques/validation)
-- [class-validator Docs](https://github.com/typestack/class-validator)
+- [Class Validator](https://github.com/typestack/class-validator)
+- [Class Transformer](https://github.com/typestack/class-transformer)
 - [NestJS Pipes](https://docs.nestjs.com/pipes)
